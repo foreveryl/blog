@@ -5,16 +5,40 @@
   
   <title>GitHub 博客搭建笔记 | Hexo</title>
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
-  <meta name="description">
+  <meta name="description" content="使用Hexo 搭建Github 博客
+1, Hexo 安装hexo是一款基于Node.js的静态博客框架
+依赖node.js
+安装1npm install hexo -g
+创建博客123hexo init blogcd blognpm install
+生成静态文件1hexo g
+发布1hexo s
+就可以再http://localhost:4000 上查看网页.
+网页还需要挂到intenet上,">
 <meta property="og:type" content="article">
 <meta property="og:title" content="GitHub 博客搭建笔记">
 <meta property="og:url" content="http://foreveryl.github.io/blog/2015/07/08/first-page/index.html">
 <meta property="og:site_name" content="Hexo">
-<meta property="og:description">
-<meta property="og:updated_time" content="2015-07-08T11:37:34.467Z">
+<meta property="og:description" content="使用Hexo 搭建Github 博客
+1, Hexo 安装hexo是一款基于Node.js的静态博客框架
+依赖node.js
+安装1npm install hexo -g
+创建博客123hexo init blogcd blognpm install
+生成静态文件1hexo g
+发布1hexo s
+就可以再http://localhost:4000 上查看网页.
+网页还需要挂到intenet上,">
+<meta property="og:updated_time" content="2015-07-08T12:16:47.828Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="GitHub 博客搭建笔记">
-<meta name="twitter:description">
+<meta name="twitter:description" content="使用Hexo 搭建Github 博客
+1, Hexo 安装hexo是一款基于Node.js的静态博客框架
+依赖node.js
+安装1npm install hexo -g
+创建博客123hexo init blogcd blognpm install
+生成静态文件1hexo g
+发布1hexo s
+就可以再http://localhost:4000 上查看网页.
+网页还需要挂到intenet上,">
   
     <link rel="alternative" href="/atom.xml" title="Hexo" type="application/atom+xml">
   
@@ -82,7 +106,23 @@
     
     <div class="article-entry" itemprop="articleBody">
       
-        
+        <p>使用Hexo 搭建Github 博客</p>
+<h3 id="1,_Hexo_安装">1, Hexo 安装</h3><p>hexo是一款基于Node.js的静态博客框架</p>
+<h5 id="依赖">依赖</h5><p>node.js</p>
+<h5 id="安装">安装</h5><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">npm install hexo -g</span><br></pre></td></tr></table></figure>
+<h5 id="创建博客">创建博客</h5><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">hexo init blog</span><br><span class="line"><span class="built_in">cd</span> blog</span><br><span class="line">npm install</span><br></pre></td></tr></table></figure>
+<h5 id="生成静态文件">生成静态文件</h5><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">hexo g</span><br></pre></td></tr></table></figure>
+<h5 id="发布">发布</h5><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">hexo s</span><br></pre></td></tr></table></figure>
+<p>就可以再<a href="http://localhost:4000" target="_blank" rel="external">http://localhost:4000</a> 上查看网页.</p>
+<p>网页还需要挂到intenet上, github上提供的pages 功能可以帮助做这件事情.</p>
+<h3 id="2_GitHub_博客">2 GitHub 博客</h3><h5 id="创建Reop">创建Reop</h5><h5 id="设置repo为github_pages">设置repo为github pages</h5><p>在Repo Setting 里, 选择自动生成pages<br>在<a href="https://xxx.github.io/blog" target="_blank" rel="external">https://xxx.github.io/blog</a> 中可以查看github生成的网页</p>
+<h5 id="配置Hexo_自动部署">配置Hexo 自动部署</h5><p>在_config.yml 里如下配置<br>1), URL 按照提示, 修改成子目录</p>
+<p>## If your site is put in a subdirectory, set url as ‘<a href="http://yoursite.com/child" target="_blank" rel="external">http://yoursite.com/child</a>‘ and root as ‘/child/‘<br><figure class="highlight groovy"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="string">url:</span> <span class="string">http:</span><span class="comment">//foreveryl.github.io/blog</span></span><br><span class="line"><span class="string">root:</span> <span class="regexp">/blog/</span></span><br></pre></td></tr></table></figure></p>
+<p>2), Deployment<br><figure class="highlight less"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="attribute">deploy</span>:</span><br><span class="line">  <span class="attribute">type</span>: git</span><br><span class="line">  <span class="attribute">repo</span>: <span class="attribute">https</span>:<span class="comment">//foreveryl@github.com/foreveryl/blog.git</span></span><br><span class="line">  <span class="attribute">branch</span>: gh-pages</span><br></pre></td></tr></table></figure></p>
+<p>3), 安装node.js git 插件<br><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">npm install hexo-deployer-git --save</span><br></pre></td></tr></table></figure></p>
+<p>4), 部署<br><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">hexo <span class="operator">-d</span> g</span><br></pre></td></tr></table></figure></p>
+<p>可在<a href="http://foreveryl.github.io/blog">http://foreveryl.github.io/blog</a> 这个页面查看生成的网页</p>
+
       
     </div>
     <footer class="article-footer">
