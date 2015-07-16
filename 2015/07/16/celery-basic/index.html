@@ -1,0 +1,510 @@
+
+ <!DOCTYPE HTML>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  
+    <title>基于celery的hbase scan任务调度 | yl</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1,user-scalable=no">
+    
+    <meta name="author" content="yl">
+    
+
+    
+    <meta name="description" content="基于celery的hbase scan任务调度问题来源我们开发了一个基于hbase 的多维度查询, 分析系统.  有我们的用户直接提交查询任务. 查看报表.刚开始, 任务不多. 那么通过crontab 来每次执行一个任务.  最简单, 没问题.但是后来用的人越来越多. 提交的查询也逐渐变多.   这样, 同时只能1个任务执行,  任务等待时间很长.考虑到hbase 是共用资源, 并且每个任务sca">
+<meta property="og:type" content="article">
+<meta property="og:title" content="基于celery的hbase scan任务调度">
+<meta property="og:url" content="http://foreveryl.github.io/blog/2015/07/16/celery-basic/index.html">
+<meta property="og:site_name" content="yl">
+<meta property="og:description" content="基于celery的hbase scan任务调度问题来源我们开发了一个基于hbase 的多维度查询, 分析系统.  有我们的用户直接提交查询任务. 查看报表.刚开始, 任务不多. 那么通过crontab 来每次执行一个任务.  最简单, 没问题.但是后来用的人越来越多. 提交的查询也逐渐变多.   这样, 同时只能1个任务执行,  任务等待时间很长.考虑到hbase 是共用资源, 并且每个任务sca">
+<meta property="og:updated_time" content="2015-07-16T06:54:18.695Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="基于celery的hbase scan任务调度">
+<meta name="twitter:description" content="基于celery的hbase scan任务调度问题来源我们开发了一个基于hbase 的多维度查询, 分析系统.  有我们的用户直接提交查询任务. 查看报表.刚开始, 任务不多. 那么通过crontab 来每次执行一个任务.  最简单, 没问题.但是后来用的人越来越多. 提交的查询也逐渐变多.   这样, 同时只能1个任务执行,  任务等待时间很长.考虑到hbase 是共用资源, 并且每个任务sca">
+
+    
+    <link rel="alternative" href="/atom.xml" title="yl" type="application/atom+xml">
+    
+    
+    <link rel="icon" href="/blog/img/favicon.ico">
+    
+    
+    <link rel="apple-touch-icon" href="/blog/img/jacman.jpg">
+    <link rel="apple-touch-icon-precomposed" href="/blog/img/jacman.jpg">
+    
+    <link rel="stylesheet" href="/blog/css/style.css" type="text/css">
+</head>
+
+  <body>
+    <header>
+      
+<div>
+		
+			<div id="imglogo">
+				<a href="/blog/"><img src="/blog/img/logo.png" alt="yl" title="yl"/></a>
+			</div>
+			
+			<div id="textlogo">
+				<h1 class="site-name"><a href="/blog/" title="yl">yl</a></h1>
+				<h2 class="blog-motto"></h2>
+			</div>
+			<div class="navbar"><a class="navbutton navmobile" href="#" title="菜单">
+			</a></div>
+			<nav class="animated">
+				<ul>
+					<ul>
+					 
+						<li><a href="/blog/">Home</a></li>
+					
+						<li><a href="/blog/archives">Archives</a></li>
+					
+						<li><a href="/blog/about">About</a></li>
+					
+					<li>
+ 					
+						<form class="search" action="http://foreveryl.github.io/blog/" target="_blank">
+							<label>Search</label>
+						<input name="s" type="hidden" value= 50b788a343a018f0fbf0438101dd3c7d ><input type="text" name="q" size="30" placeholder="搜索"><br>
+						</form>
+					
+					</li>
+				</ul>
+			</nav>			
+</div>
+    </header>
+    <div id="container">
+      <div id="main" class="post" itemscope itemprop="blogPost">
+  
+	<article itemprop="articleBody"> 
+		<header class="article-info clearfix">
+  <h1 itemprop="name">
+    
+      <a href="/blog/2015/07/16/celery-basic/" title="基于celery的hbase scan任务调度" itemprop="url">基于celery的hbase scan任务调度</a>
+  </h1>
+  <p class="article-author">By
+       
+		<a href="/blog/about" title="yl" target="_blank" itemprop="author">yl</a>
+		
+  <p class="article-time">
+    <time datetime="2015-07-16T06:53:37.000Z" itemprop="datePublished"> 发表于 2015-07-16</time>
+    
+  </p>
+</header>
+	<div class="article-content">
+		
+		<div id="toc" class="toc-article">
+			<strong class="toc-title">文章目录</strong>
+		
+			<ol class="toc"><li class="toc-item toc-level-3"><a class="toc-link" href="#基于celery的hbase_scan任务调度"><span class="toc-number">1.</span> <span class="toc-text">基于celery的hbase scan任务调度</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#问题来源"><span class="toc-number">1.1.</span> <span class="toc-text">问题来源</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#考虑的解决方案:"><span class="toc-number">1.2.</span> <span class="toc-text">考虑的解决方案:</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#celery_任务部署示例"><span class="toc-number">1.3.</span> <span class="toc-text">celery 任务部署示例</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#总结"><span class="toc-number">1.4.</span> <span class="toc-text">总结</span></a></li></ol></li></ol>
+		
+		</div>
+		
+		<h3 id="基于celery的hbase_scan任务调度">基于celery的hbase scan任务调度</h3><h4 id="问题来源">问题来源</h4><p>我们开发了一个基于hbase 的多维度查询, 分析系统.  有我们的用户直接提交查询任务. 查看报表.<br>刚开始, 任务不多. 那么通过crontab 来每次执行一个任务.  最简单, 没问题.<br>但是后来用的人越来越多. 提交的查询也逐渐变多.   这样, 同时只能1个任务执行,  任务等待时间很长.<br>考虑到hbase 是共用资源, 并且每个任务scan 都需要和region server rpc 通信. 那么如果同时多个任务一起跑,<br>就会越来越慢.<br>所以需要并发控制. </p>
+<h4 id="考虑的解决方案:">考虑的解决方案:</h4><ul>
+<li><p><strong>开发一个java 多线程任务</strong><br>一开始的思路,  写个java, 开n个线程. 每个线程run一个任务.<br>缺点:<br>其实看似很简单, , 看着不复杂, 但是仔细想想,还是挺麻烦<br>1), 要写代码, 要debug, 要维护<br>2), 多线程等于要写一个生产者, 消费者模型.   相当于自己实现一个消息队列.<br>3), 如何提交任务?  还要开发一个接口<br>4), 如何扩展, 要自定义协议.<br>5), 如何容错？　任务运行失败能否自动重试（比如hbase 集群重启)<br>消息队列被kill, 怎么恢复? 等等.<br>6), 任务管理, 正在运行的, 已经运行的.. 等等. </p>
+</li>
+<li><p><strong>现有调度系统</strong><br>公司另外一个组, 他们开发一套任务分布式提交的系统. 并且一直在线上使用.<br>优点是, 他们做到了任务的自动部署. 以及中央管理.<br>调研后,发现不满足如下需求<br>1), 他们的目标是 提交任务机器的并发控制, 不是任务的并发控制.<br>任务的并发, 交给hadoop queue 来调度.<br>机器并发是什么意思? 因为他们任务很多, 入口机内存不大, 这样在启动任务的时候, 需要找一台相对空闲的机器来执行.<br>对hbase scan任务来说, 也不太适合. 我们的瓶颈是在hbase.<br></p><p><br>2), 没有容错.<br>他们的容错是通过 类似于crontab 来执行的.<br>也就是这次失败, 会再下次crontab 设定的时间, 触发任务再执行.<br>也不适合hbase scan 分析任务. </p>
+</li>
+</ul>
+<ul>
+<li><strong>celery</strong><br>后来找到了celery. 一个python的分布式消息处理系统.  很好的解决了我们的需求.<br>1), 任务实时提交<br>通过前段的tornado, 任务有客户端提交执行. 不需要crontab做中间层, 在mysql中查询任务.<br>2), 并发控制<br>celery 的concurrence 配置就行.<br>3), 容错:<br>celery 支持容错. 再也不用担心jobtracker 重启了.<br>4), 可靠, 可视化<br>celery 是一个比较成熟的方案.<br>基于celery的flower , 可以监控任务的执行. celery的状态. 等等.<br>5), 最主要的:<br>这写是开源的, 并且很简单. 完全不用改变目前的任务业务逻辑. </li>
+</ul>
+<h4 id="celery_任务部署示例">celery 任务部署示例</h4><ul>
+<li><p>创建project 作为celery任务的根目录 proj<br>在该目录下, </p>
+<figure class="highlight"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">touch celery.py&#10;touch email_task.py&#10;touch __init__.py</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>celery.py 中定义celery application 示例:</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">from</span> __future__ <span class="keyword">import</span> absolute_import</span><br><span class="line"><span class="keyword">from</span> celery <span class="keyword">import</span> Celery</span><br><span class="line">app = Celery(<span class="string">"proj"</span>,  //celery 任务根目录</span><br><span class="line">             broker = <span class="string">"redis://host:port/5"</span>,  //broker redis 数据库</span><br><span class="line">             include = [<span class="string">'proj.email_task'</span>]  //要调度的任务</span><br><span class="line">             )</span><br><span class="line">app.conf.update(</span><br><span class="line">        CELERY_ROUTES=&#123;</span><br><span class="line">        <span class="string">"proj.email_task.do_email"</span>:&#123;<span class="string">"queue"</span>:<span class="string">"hipri"</span>&#125;, // 把add任务放入hipri队列</span><br><span class="line">        // 需要执行时指定队列 add.apply_async((<span class="number">2</span>, <span class="number">2</span>), queue=<span class="string">'hipri'</span>)</span><br><span class="line">        &#125;</span><br><span class="line">    )</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>email_task.py 中定义要调度的任务</p>
+</li>
+</ul>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">from</span> __future__ <span class="keyword">import</span> absolute_import</span><br><span class="line"><span class="keyword">from</span> proj.celery <span class="keyword">import</span> app</span><br><span class="line"></span><br><span class="line"><span class="decorator">@app.task()</span></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">do_email</span><span class="params">()</span>:</span></span><br><span class="line">    <span class="keyword">print</span> <span class="string">'begin to email'</span></span><br><span class="line">    time.sleep(<span class="number">5</span>)</span><br><span class="line">    <span class="keyword">print</span> <span class="string">'email complete'</span></span><br></pre></td></tr></table></figure>
+<p>do_email() 就是实际需要执行的任务. 这里模拟执行. </p>
+<ul>
+<li>celery 任务启动</li>
+</ul>
+<figure class="highlight"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">celery -A proj worker -Q hipri</span><br></pre></td></tr></table></figure>
+<p>-A 指定到任务目录<br>-Q 是分配celery worker 的队列. </p>
+<ul>
+<li>测试 test.py<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">from</span> __future__ <span class="keyword">import</span> absolute_import</span><br><span class="line"><span class="keyword">from</span> proj.email_task <span class="keyword">import</span> do_email</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">main</span><span class="params">()</span>:</span></span><br><span class="line">    <span class="keyword">for</span> i <span class="keyword">in</span> range(<span class="number">5</span>):</span><br><span class="line">        <span class="keyword">print</span> <span class="string">'client do email '</span>, i</span><br><span class="line">        do_email.apply_async(queue=<span class="string">'hipri'</span>)</span><br><span class="line">        time.sleep(<span class="number">0.5</span>)</span><br><span class="line"></span><br><span class="line"><span class="keyword">if</span> __name__ == <span class="string">'__main__'</span>:</span><br><span class="line">    main()</span><br></pre></td></tr></table></figure>
+</li>
+</ul>
+<p>do_email.apply_async(queue=’hipri’) 这个指定了任务执行的队列.<br>并且把任务交给celery 来异步的调度. </p>
+<p>观察任务执行的顺序, 能直观的发现任务是如何异步来执行的. </p>
+<h4 id="总结">总结</h4><p>上面是简单的例子.  在我们实际需求中, 值需要:<br>把do_email() 函数换乘我们需要的, 执行调度脚本.<br>测试test.py 换乘tornado server, 在线接收任务.<br>就可以<strong>实时</strong>, <strong>并发控制</strong>,<strong>可容错</strong>, <strong>可视化</strong>的调度任务了. </p>
+  
+	</div>
+		<footer class="article-footer clearfix">
+<div class="article-catetags">
+
+
+  <div class="article-tags">
+  
+  <span></span> <a href="/blog/tags/celery/">celery</a>
+  </div>
+
+</div>
+
+
+
+	<div class="article-share" id="share">
+	
+	  <div data-url="http://foreveryl.github.io/blog/2015/07/16/celery-basic/" data-title="基于celery的hbase scan任务调度 | yl" data-tsina="null" class="share clearfix">
+	  </div>
+	
+	</div>
+
+
+</footer>
+
+   	       
+	</article>
+	
+<nav class="article-nav clearfix">
+ 
+
+<div class="next">
+<a href="/blog/2015/07/15/Hbase-Scan-主要流程分析/"  title="Hbase Scan 主要流程分析">
+ <strong>下一篇：</strong><br/> 
+ <span>Hbase Scan 主要流程分析
+</span>
+</a>
+</div>
+
+</nav>
+
+	
+<section id="comments" class="comment">
+	<div class="ds-thread" data-thread-key="2015/07/16/celery-basic/" data-title="基于celery的hbase scan任务调度" data-url="http://foreveryl.github.io/blog/2015/07/16/celery-basic/"></div>
+</section>
+
+
+</div>  
+      <div class="openaside"><a class="navbutton" href="#" title="显示侧边栏"></a></div>
+
+  <div id="toc" class="toc-aside">
+  <strong class="toc-title">文章目录</strong>
+ 
+ <ol class="toc"><li class="toc-item toc-level-3"><a class="toc-link" href="#基于celery的hbase_scan任务调度"><span class="toc-number">1.</span> <span class="toc-text">基于celery的hbase scan任务调度</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#问题来源"><span class="toc-number">1.1.</span> <span class="toc-text">问题来源</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#考虑的解决方案:"><span class="toc-number">1.2.</span> <span class="toc-text">考虑的解决方案:</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#celery_任务部署示例"><span class="toc-number">1.3.</span> <span class="toc-text">celery 任务部署示例</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#总结"><span class="toc-number">1.4.</span> <span class="toc-text">总结</span></a></li></ol></li></ol>
+ 
+  </div>
+
+<div id="asidepart">
+<div class="closeaside"><a class="closebutton" href="#" title="隐藏侧边栏"></a></div>
+<aside class="clearfix">
+
+  
+
+  
+<div class="tagslist">
+	<p class="asidetitle">标签</p>
+		<ul class="clearfix">
+		
+			
+				<li><a href="/blog/tags/hbase/" title="hbase">hbase<sup>1</sup></a></li>
+			
+		
+			
+				<li><a href="/blog/tags/celery/" title="celery">celery<sup>1</sup></a></li>
+			
+		
+		</ul>
+</div>
+
+
+  <div class="linkslist">
+  <p class="asidetitle">友情链接</p>
+    <ul>
+        
+          <li>
+            
+            	<a href="https://coderq.com" target="_blank" title="一个面向程序员交流分享的新一代社区">码农圈</a>
+            
+          </li>
+        
+          <li>
+            
+            	<a href="http://wuchong.me" target="_blank" title="Jark&#39;s Blog">Jark&#39;s Blog</a>
+            
+          </li>
+        
+    </ul>
+</div>
+
+  
+
+
+  <div class="rsspart">
+	<a href="/atom.xml" target="_blank" title="rss">RSS 订阅</a>
+</div>
+
+</aside>
+</div>
+    </div>
+    <footer><div id="footer" >
+	
+	
+	<section class="info">
+		<p> Hi ,I&#39;m yl. <br/>
+			null</p>
+	</section>
+	 
+	<div class="social-font" class="clearfix">
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+	</div>
+			
+		
+
+		<p class="copyright">
+		Powered by <a href="http://hexo.io" target="_blank" title="hexo">hexo</a> and Theme by <a href="https://github.com/wuchong/jacman" target="_blank" title="Jacman">Jacman</a> © 2015 
+		
+		<a href="/blog/about" target="_blank" title="yl">yl</a>
+		
+		
+		</p>
+</div>
+</footer>
+    <script src="/blog/js/jquery-2.0.3.min.js"></script>
+<script src="/blog/js/jquery.imagesloaded.min.js"></script>
+<script src="/blog/js/gallery.js"></script>
+<script src="/blog/js/jquery.qrcode-0.12.0.min.js"></script>
+
+<script type="text/javascript">
+$(document).ready(function(){ 
+  $('.navbar').click(function(){
+    $('header nav').toggleClass('shownav');
+  });
+  var myWidth = 0;
+  function getSize(){
+    if( typeof( window.innerWidth ) == 'number' ) {
+      myWidth = window.innerWidth;
+    } else if( document.documentElement && document.documentElement.clientWidth) {
+      myWidth = document.documentElement.clientWidth;
+    };
+  };
+  var m = $('#main'),
+      a = $('#asidepart'),
+      c = $('.closeaside'),
+      o = $('.openaside');
+  c.click(function(){
+    a.addClass('fadeOut').css('display', 'none');
+    o.css('display', 'block').addClass('fadeIn');
+    m.addClass('moveMain');
+  });
+  o.click(function(){
+    o.css('display', 'none').removeClass('beforeFadeIn');
+    a.css('display', 'block').removeClass('fadeOut').addClass('fadeIn');      
+    m.removeClass('moveMain');
+  });
+  $(window).scroll(function(){
+    o.css("top",Math.max(80,260-$(this).scrollTop()));
+  });
+  
+  $(window).resize(function(){
+    getSize(); 
+    if (myWidth >= 1024) {
+      $('header nav').removeClass('shownav');
+    }else{
+      m.removeClass('moveMain');
+      a.css('display', 'block').removeClass('fadeOut');
+      o.css('display', 'none');
+      
+      $('#toc.toc-aside').css('display', 'none');
+        
+    }
+  });
+});
+</script>
+
+<script type="text/javascript">
+$(document).ready(function(){ 
+  var ai = $('.article-content>iframe'),
+      ae = $('.article-content>embed'),
+      t  = $('#toc'),
+      ta = $('#toc.toc-aside'),
+      o  = $('.openaside'),
+      c  = $('.closeaside');
+  if(ai.length>0){
+    ai.wrap('<div class="video-container" />');
+  };
+  if(ae.length>0){
+   ae.wrap('<div class="video-container" />');
+  };
+  c.click(function(){
+    ta.css('display', 'block').addClass('fadeIn');
+  });
+  o.click(function(){
+    ta.css('display', 'none');
+  });
+  $(window).scroll(function(){
+    ta.css("top",Math.max(140,320-$(this).scrollTop()));
+  });
+});
+</script>
+
+
+<script type="text/javascript">
+$(document).ready(function(){ 
+  var $this = $('.share'),
+      url = $this.attr('data-url'),
+      encodedUrl = encodeURIComponent(url),
+      title = $this.attr('data-title'),
+      tsina = $this.attr('data-tsina'),
+      description = $this.attr('description');
+  var html = [
+  '<div class="hoverqrcode clearfix"></div>',
+  '<a class="overlay" id="qrcode"></a>',
+  '<a href="https://www.facebook.com/sharer.php?u=' + encodedUrl + '" class="article-share-facebook" target="_blank" title="Facebook"></a>',
+  '<a href="https://twitter.com/intent/tweet?url=' + encodedUrl + '" class="article-share-twitter" target="_blank" title="Twitter"></a>',
+  '<a href="#qrcode" class="article-share-qrcode" title="微信"></a>',
+  '<a href="http://widget.renren.com/dialog/share?resourceUrl=' + encodedUrl + '&srcUrl=' + encodedUrl + '&title=' + title +'" class="article-share-renren" target="_blank" title="人人"></a>',
+  '<a href="http://service.weibo.com/share/share.php?title='+title+'&url='+encodedUrl +'&ralateUid='+ tsina +'&searchPic=true&style=number' +'" class="article-share-weibo" target="_blank" title="微博"></a>',
+  '<span title="Share to"></span>'
+  ].join('');
+  $this.append(html);
+
+  $('.hoverqrcode').hide();
+
+  var myWidth = 0;
+  function updatehoverqrcode(){
+    if( typeof( window.innerWidth ) == 'number' ) {
+      myWidth = window.innerWidth;
+    } else if( document.documentElement && document.documentElement.clientWidth) {
+      myWidth = document.documentElement.clientWidth;
+    };
+    var qrsize = myWidth > 1024 ? 200:100;
+    var options = {render: 'image', size: qrsize, fill: '#2ca6cb', text: url, radius: 0.5, quiet: 1};
+    var p = $('.article-share-qrcode').position();
+    $('.hoverqrcode').empty().css('width', qrsize).css('height', qrsize)
+                          .css('left', p.left-qrsize/2+20).css('top', p.top-qrsize-10)
+                          .qrcode(options);
+  };
+  $(window).resize(function(){
+    $('.hoverqrcode').hide();
+  });
+  $('.article-share-qrcode').click(function(){
+    updatehoverqrcode();
+    $('.hoverqrcode').toggle();
+  });
+  $('.article-share-qrcode').hover(function(){}, function(){
+      $('.hoverqrcode').hide();
+  });
+});   
+</script>
+
+
+
+<script type="text/javascript">
+  var duoshuoQuery = {short_name:"foreveryl"};
+  (function() {
+    var ds = document.createElement('script');
+    ds.type = 'text/javascript';ds.async = true;
+    ds.src = '//static.duoshuo.com/embed.js';
+    ds.charset = 'UTF-8';
+    (document.getElementsByTagName('head')[0] 
+    || document.getElementsByTagName('body')[0]).appendChild(ds);
+  })();
+</script> 
+
+
+
+
+
+
+
+<link rel="stylesheet" href="/blog/fancybox/jquery.fancybox.css" media="screen" type="text/css">
+<script src="/blog/fancybox/jquery.fancybox.pack.js"></script>
+<script type="text/javascript">
+$(document).ready(function(){ 
+  $('.article-content').each(function(i){
+    $(this).find('img').each(function(){
+      if ($(this).parent().hasClass('fancybox')) return;
+      var alt = this.alt;
+      if (alt) $(this).after('<span class="caption">' + alt + '</span>');
+      $(this).wrap('<a href="' + this.src + '" title="' + alt + '" class="fancybox"></a>');
+    });
+    $(this).find('.fancybox').each(function(){
+      $(this).attr('rel', 'article' + i);
+    });
+  });
+  if($.fancybox){
+    $('.fancybox').fancybox();
+  }
+}); 
+</script>
+
+
+
+<!-- Analytics Begin -->
+
+
+
+<script type="text/javascript">
+var _bdhmProtocol = (("https:" == document.location.protocol) ? " https://" : " http://");
+document.write(unescape("%3Cscript src='" + _bdhmProtocol + "hm.baidu.com/h.js%3F50b788a343a018f0fbf0438101dd3c7d' type='text/javascript'%3E%3C/script%3E"));
+</script>
+
+
+
+<!-- Analytics End -->
+
+<!-- Totop Begin -->
+
+	<div id="totop">
+	<a title="返回顶部"><img src="/blog/img/scrollup.png"/></a>
+	</div>
+	<script src="/blog/js/totop.js"></script>
+
+<!-- Totop End -->
+
+<!-- MathJax Begin -->
+<!-- mathjax config similar to math.stackexchange -->
+
+<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    tex2jax: {
+      inlineMath: [ ['$','$'], ["\\(","\\)"] ],
+      processEscapes: true
+    }
+  });
+</script>
+
+<script type="text/x-mathjax-config">
+    MathJax.Hub.Config({
+      tex2jax: {
+        skipTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']
+      }
+    });
+</script>
+
+<script type="text/x-mathjax-config">
+    MathJax.Hub.Queue(function() {
+        var all = MathJax.Hub.getAllJax(), i;
+        for(i=0; i < all.length; i += 1) {
+            all[i].SourceElement().parentNode.className += ' has-jax';
+        }
+    });
+</script>
+
+<script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML">
+</script>
+
+
+<!-- MathJax End -->
+
+<!-- Tiny_search Begin -->
+
+<!-- Tiny_search End -->
+
+  </body>
+</html>

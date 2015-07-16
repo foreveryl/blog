@@ -80,6 +80,97 @@
         <header class="article-info clearfix">
   <h1 itemprop="name">
     
+      <a href="/blog/2015/07/16/celery-basic/" title="基于celery的hbase scan任务调度" itemprop="url">基于celery的hbase scan任务调度</a>
+  </h1>
+  <p class="article-author">By
+       
+		<a href="/blog/about" title="yl" target="_blank" itemprop="author">yl</a>
+		
+  <p class="article-time">
+    <time datetime="2015-07-16T06:53:37.000Z" itemprop="datePublished"> 发表于 2015-07-16</time>
+    
+  </p>
+</header>
+    <div class="article-content">
+        
+        <h3 id="基于celery的hbase_scan任务调度">基于celery的hbase scan任务调度</h3><h4 id="问题来源">问题来源</h4><p>我们开发了一个基于hbase 的多维度查询, 分析系统.  有我们的用户直接提交查询任务. 查看报表.<br>刚开始, 任务不多. 那么通过crontab 来每次执行一个任务.  最简单, 没问题.<br>但是后来用的人越来越多. 提交的查询也逐渐变多.   这样, 同时只能1个任务执行,  任务等待时间很长.<br>考虑到hbase 是共用资源, 并且每个任务scan 都需要和region server rpc 通信. 那么如果同时多个任务一起跑,<br>就会越来越慢.<br>所以需要并发控制. </p>
+<h4 id="考虑的解决方案:">考虑的解决方案:</h4><ul>
+<li><p><strong>开发一个java 多线程任务</strong><br>一开始的思路,  写个java, 开n个线程. 每个线程run一个任务.<br>缺点:<br>其实看似很简单, , 看着不复杂, 但是仔细想想,还是挺麻烦<br>1), 要写代码, 要debug, 要维护<br>2), 多线程等于要写一个生产者, 消费者模型.   相当于自己实现一个消息队列.<br>3), 如何提交任务?  还要开发一个接口<br>4), 如何扩展, 要自定义协议.<br>5), 如何容错？　任务运行失败能否自动重试（比如hbase 集群重启)<br>消息队列被kill, 怎么恢复? 等等.<br>6), 任务管理, 正在运行的, 已经运行的.. 等等. </p>
+</li>
+<li><p><strong>现有调度系统</strong><br>公司另外一个组, 他们开发一套任务分布式提交的系统. 并且一直在线上使用.<br>优点是, 他们做到了任务的自动部署. 以及中央管理.<br>调研后,发现不满足如下需求<br>1), 他们的目标是 提交任务机器的并发控制, 不是任务的并发控制.<br>任务的并发, 交给hadoop queue 来调度.<br>机器并发是什么意思? 因为他们任务很多, 入口机内存不大, 这样在启动任务的时候, 需要找一台相对空闲的机器来执行.<br>对hbase scan任务来说, 也不太适合. 我们的瓶颈是在hbase.<br></p><p><br>2), 没有容错.<br>他们的容错是通过 类似于crontab 来执行的.<br>也就是这次失败, 会再下次crontab 设定的时间, 触发任务再执行.<br>也不适合hbase scan 分析任务. </p>
+</li>
+</ul>
+<ul>
+<li><strong>celery</strong><br>后来找到了celery. 一个python的分布式消息处理系统.  很好的解决了我们的需求.<br>1), 任务实时提交<br>通过前段的tornado, 任务有客户端提交执行. 不需要crontab做中间层, 在mysql中查询任务.<br>2), 并发控制<br>celery 的concurrence 配置就行.<br>3), 容错:<br>celery 支持容错. 再也不用担心jobtracker 重启了.<br>4), 可靠, 可视化<br>celery 是一个比较成熟的方案.<br>基于celery的flower , 可以监控任务的执行. celery的状态. 等等.<br>5), 最主要的:<br>这写是开源的, 并且很简单. 完全不用改变目前的任务业务逻辑. </li>
+</ul>
+<h4 id="celery_任务部署示例">celery 任务部署示例</h4><ul>
+<li><p>创建project 作为celery任务的根目录 proj<br>在该目录下, </p>
+<figure class="highlight"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">touch celery.py&#10;touch email_task.py&#10;touch __init__.py</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>celery.py 中定义celery application 示例:</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">from</span> __future__ <span class="keyword">import</span> absolute_import</span><br><span class="line"><span class="keyword">from</span> celery <span class="keyword">import</span> Celery</span><br><span class="line">app = Celery(<span class="string">"proj"</span>,  //celery 任务根目录</span><br><span class="line">             broker = <span class="string">"redis://host:port/5"</span>,  //broker redis 数据库</span><br><span class="line">             include = [<span class="string">'proj.email_task'</span>]  //要调度的任务</span><br><span class="line">             )</span><br><span class="line">app.conf.update(</span><br><span class="line">        CELERY_ROUTES=&#123;</span><br><span class="line">        <span class="string">"proj.email_task.do_email"</span>:&#123;<span class="string">"queue"</span>:<span class="string">"hipri"</span>&#125;, // 把add任务放入hipri队列</span><br><span class="line">        // 需要执行时指定队列 add.apply_async((<span class="number">2</span>, <span class="number">2</span>), queue=<span class="string">'hipri'</span>)</span><br><span class="line">        &#125;</span><br><span class="line">    )</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>email_task.py 中定义要调度的任务</p>
+</li>
+</ul>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">from</span> __future__ <span class="keyword">import</span> absolute_import</span><br><span class="line"><span class="keyword">from</span> proj.celery <span class="keyword">import</span> app</span><br><span class="line"></span><br><span class="line"><span class="decorator">@app.task()</span></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">do_email</span><span class="params">()</span>:</span></span><br><span class="line">    <span class="keyword">print</span> <span class="string">'begin to email'</span></span><br><span class="line">    time.sleep(<span class="number">5</span>)</span><br><span class="line">    <span class="keyword">print</span> <span class="string">'email complete'</span></span><br></pre></td></tr></table></figure>
+<p>do_email() 就是实际需要执行的任务. 这里模拟执行. </p>
+<ul>
+<li>celery 任务启动</li>
+</ul>
+<figure class="highlight"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">celery -A proj worker -Q hipri</span><br></pre></td></tr></table></figure>
+<p>-A 指定到任务目录<br>-Q 是分配celery worker 的队列. </p>
+<ul>
+<li>测试 test.py<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">from</span> __future__ <span class="keyword">import</span> absolute_import</span><br><span class="line"><span class="keyword">from</span> proj.email_task <span class="keyword">import</span> do_email</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">main</span><span class="params">()</span>:</span></span><br><span class="line">    <span class="keyword">for</span> i <span class="keyword">in</span> range(<span class="number">5</span>):</span><br><span class="line">        <span class="keyword">print</span> <span class="string">'client do email '</span>, i</span><br><span class="line">        do_email.apply_async(queue=<span class="string">'hipri'</span>)</span><br><span class="line">        time.sleep(<span class="number">0.5</span>)</span><br><span class="line"></span><br><span class="line"><span class="keyword">if</span> __name__ == <span class="string">'__main__'</span>:</span><br><span class="line">    main()</span><br></pre></td></tr></table></figure>
+</li>
+</ul>
+<p>do_email.apply_async(queue=’hipri’) 这个指定了任务执行的队列.<br>并且把任务交给celery 来异步的调度. </p>
+<p>观察任务执行的顺序, 能直观的发现任务是如何异步来执行的. </p>
+<h4 id="总结">总结</h4><p>上面是简单的例子.  在我们实际需求中, 值需要:<br>把do_email() 函数换乘我们需要的, 执行调度脚本.<br>测试test.py 换乘tornado server, 在线接收任务.<br>就可以<strong>实时</strong>, <strong>并发控制</strong>,<strong>可容错</strong>, <strong>可视化</strong>的调度任务了. </p>
+
+        
+        
+        <p class="article-more-link">
+          
+       </p>
+    </div>
+    <footer class="article-footer clearfix">
+<div class="article-catetags">
+
+
+  <div class="article-tags">
+  
+  <span></span> <a href="/blog/tags/celery/">celery</a>
+  </div>
+
+</div>
+
+
+
+
+<div class="comments-count">
+	
+	  	<span></span>
+		<a href="/blog/2015/07/16/celery-basic/#comments" class="ds-thread-count comments-count-link" data-thread-key="2015/07/16/celery-basic/" data-count-type="comments">&nbsp;</a>
+	
+</div>
+
+</footer>
+
+
+    </article>
+
+
+
+
+
+
+   
+    
+    <article class="post-expand post" itemprop="articleBody"> 
+        <header class="article-info clearfix">
+  <h1 itemprop="name">
+    
       <a href="/blog/2015/07/15/Hbase-Scan-主要流程分析/" title="Hbase Scan 主要流程分析" itemprop="url">Hbase Scan 主要流程分析</a>
   </h1>
   <p class="article-author">By
@@ -339,6 +430,10 @@
 		
 			
 				<li><a href="/blog/tags/hbase/" title="hbase">hbase<sup>1</sup></a></li>
+			
+		
+			
+				<li><a href="/blog/tags/celery/" title="celery">celery<sup>1</sup></a></li>
 			
 		
 		</ul>
