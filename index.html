@@ -80,6 +80,111 @@
         <header class="article-info clearfix">
   <h1 itemprop="name">
     
+      <a href="/blog/2015/07/20/lr/" title="LR" itemprop="url">LR</a>
+  </h1>
+  <p class="article-author">By
+       
+		<a href="/blog/about" title="yl" target="_blank" itemprop="author">yl</a>
+		
+  <p class="article-time">
+    <time datetime="2015-07-20T11:10:15.000Z" itemprop="datePublished"> 发表于 2015-07-20</time>
+    
+  </p>
+</header>
+    <div class="article-content">
+        
+        <h4 id="Logistic_Regression">Logistic Regression</h4><p>名字里是回归, 实际是做分类的.<br>但其实是殊途同归的. </p>
+<h5 id="问题定义:_max_likelihood">问题定义: max likelihood</h5><p>去正样本为1, 负样本为0<br>对某一个样本, 在0,1 上有概率分布.  (分布logistic link 函数) </p>
+<p>$<br>p_{i} = \frac{1}{1 + e^{-wx} }<br>$</p>
+<p>那么对分类问题, 可规定 &gt;0.5 为正样本.  &lt;0.5就是负样本. </p>
+<p>如何定义loss 函数 ? 很直观, 希望train set中+1的$p<em>{i}$越接近1, 否则越接近0.  于是:<br>$<br>L=\sum</em>{i, y<em>{i} = 1} log(p</em>{i} ) + \sum_{i, y<em>{i} = 0} log(1 - p</em>{i} )<br>$</p>
+<p>显然我们需要求解的是 $ max L $</p>
+<h5 id="GD_方法求解">GD 方法求解</h5><p>要求最大值, 用梯度上升</p>
+<p>$w = w + \alpha * \frac { \partial {L} } {\partial {w} }$</p>
+<p>$\alpha$  叫learning rate, 在SGD中是人工置顶的常量(后者有衰减因子).  后面会提到line search 中步长的概念.  先不管.<br>于是现在的问题是, 如何求偏导, 推导过程如下:</p>
+<p>$<br>\frac {\partial log p } {\partial w } = \frac {1} {p} * \frac {\partial p } {\partial w}<br>$<br>令 $k = e^{-wx}$,  根据 p 的定义: $ p_{i} = \frac{1}{1 + e^{-wx} } $</p>
+<p>$\frac {\partial  } {\partial w}  ( \frac {1} { 1 + k } ) $<br>$= \frac { \partial } { \partial k } ( \frac {1} { 1+ k} )  <em> \frac {\partial k } {\partial w }$<br>$= -1 </em> (1 + k ) ^{-2} <em> \frac {\partial} {\partial w }  e ^ {- wx }$<br>$= -1 </em> (1 + k ) ^{-2} <em> e ^ {- wx } </em> ( - x ) $<br>$= \frac {k} { ( 1 + k ) ^ 2 } <em> x $<br>$= \frac {1} { 1+ k} </em> \frac {k} { 1+ k } <em> x$<br>$= p </em> (1-p ) * x $</p>
+<p>再回到原来的公式:<br>$\frac {\partial} { w} log p$<br>$=  \frac{1}{p} <em>  \frac {\partial p } {\partial w} $<br>$= \frac{1} {p} </em> p <em> (1-p ) </em> x  $<br>$= (1-p) * x $</p>
+<p>同理:<br>$\frac {\partial} { w} log (1-p) $<br>$= -1 <em> \frac{1}{1 - p} </em>  \frac {\partial p } {\partial w} $<br>$= -1 <em>  \frac{1} {(1 - p) } </em> p <em> (1-p ) </em> x  $<br>$= -p  <em> x $<br>$ = (0 - p ) </em> x $</p>
+<p>对比这两个公式: 1和0 正好是样本1,0值的情况. 于是两个公式就可以总结起来为:<br>$ \frac { \partial {L} } {\partial w }  =  \sum<em>{i} (y</em>{i} - p<em>{i} ) x</em>{i} $</p>
+<p>推导完毕.<br>所以一阶梯度的求解也就明白了:<br>$ (y - p ) $ 叫残差, 就是每个样本点的真值与预测值之间的差. $ x $ 是这个点的维度向量. </p>
+<p>这个推导过程明确后, 求解是非常容易的.<br>求解梯度的过程是每个点各求残杀, 然后累加.  那么就可以并行来实现. </p>
+<h5 id="line_search">line search</h5><p>上面的GD 方法求解.  作为优化方法的引入, 可以明确:<br>1), LR是怎么定义, 并且推导的.<br>2), 编程是如何实现的. 特别是求解1阶梯度. </p>
+<p>回顾 $w$ 等迭代更新:<br>$<br>w = w + \alpha * \frac { \partial {L} } {\partial {w} }<br>$</p>
+<p>$ \frac { \partial {L} } {\partial {w} }$ 梯度定义了方向.  但是按这个方向, 走多远是个问题.<br>GD 方法是人工的凭经验指定了学习率 learning rate,  也叫步长<br>步长太小收敛的慢, 太大则可能扯到蛋. </p>
+<p>所以步长的选择,  就需要定义必要的条件.<br>有两个:</p>
+<ul>
+<li>sufficient decrease condition<br>简单说就是每次 $f(w<em>{t+1})$ 必须小于(假设就最小值) $f(w</em>{t})$<br>更强势的条件:</li>
+<li>curvature condition<br>简单说, 就是要保证 $\bigtriangledown f(w<em>{t+1})$ 要小于 $\bigtriangledown f(w</em>{t})$<br>想想为啥要小于 ?</li>
+</ul>
+<p>同时满足这两个条件, 叫做wolfe conditions<br>当然, 如果只满足第一个条件, 也是对的. 但是收敛会慢一些.<br>同时看到, 梯度下降解法无法保证满足第一个条件, 所以收敛会更慢. </p>
+<p>如果找到一个值, 不满足条件怎么办?<br>需要通过插值算法, 在(x, x+a) 中间找到合适的. </p>
+<h5 id="newton_方法">newton 方法</h5><p>回顾newton 方法, 近似求f(x) = 0时 x 的值?</p>
+<p>这个的切线方程如下:<br>$y - f(x<em>{k}) = \bigtriangledown f(x</em>{k}) <em> (x - x<em>k)$<br>$\Rightarrow 0 - f(x</em>{k}) = \bigtriangledown f(x_{k}) </em> (x - x<em>k)$<br>$\Rightarrow x = x</em>{k} - ( \bigtriangledown f(x<em>{k}) )^{-1} * f(x</em>{k})$</p>
+<p>等等,  为什么要求f(x) = 0是的x呢?  我们的目标不是求loss 函数 $L$  最小(大)值么?</p>
+<p>依据定义. 最小值, 最大值出现的点,  1阶导数为0 .<br>所以, 这里的f 其实是 loss 函数 $L$ 的导函数.<br>所以 w 的更新是这样的:</p>
+<p>$<br>w<em>{k+1} = w</em>{k} - ( \bigtriangledown^{2} f(w<em>{k}) )^{-1} * \bigtriangledown f(w</em>{k})<br>$</p>
+<p>这个可以看做, 步长为1, 方向为: $( \bigtriangledown^{2} f(w<em>{k}) )^{-1} * \bigtriangledown f(w</em>{k})$</p>
+<h5 id="L-BFGS">L-BFGS</h5><p>newton法公式很完美.  可惜执行时: 需要2阶hess矩阵. 且需要求逆. 这很难办. </p>
+<ul>
+<li><p>Quasi-Newton Method<br>使用如下公式拟合二阶矩阵:<br>$\bigtriangledown^{2} f(w<em>{k})  \approx \frac {\bigtriangledown f(w</em>{k+1} - \bigtriangledown f(w<em>{k}) } { w</em>{k+1} - w<em>{k} }$<br>所以:<br>拟合hess矩阵计算方式:<br>$B</em>{k+1} * s<em>{k} = y</em>{k}$<br>其中:<br>$s<em>{k} =  w</em>{k+1} - w<em>{k} $<br>$y</em>{k} = \bigtriangledown f(w<em>{k+1} - \bigtriangledown f(w</em>{k}) $</p>
+</li>
+<li><p>BFGS<br>拟合Hess矩阵后, 还需要求逆, 干脆直接拟合求逆后的hess 矩阵.<br>$H<em>{k+1} * y</em>{k} = s_{k}$</p>
+</li>
+<li><p>L-BFGS<br>H 矩阵是n*n 的稠密矩阵.  计算起来代价巨大.<br>L-BFGS优化了这点, 只用最近几步的来拟合. </p>
+</li>
+</ul>
+<h5 id="L-BFGS_算法伪代码如下:">L-BFGS 算法伪代码如下:</h5><p>参考: <a href="http://www.52nlp.cn/unconstrained-optimization-five" target="_blank" rel="external">http://www.52nlp.cn/unconstrained-optimization-five</a></p>
+<p>计算lbfgs hess矩阵算法:</p>
+<p>line_search 算法:<br>参考Numerical optimization一书 第三章 line search 算法. </p>
+<p>我们在spark 上实现了如上L-bfgs 算法. 测试发现其收敛速度是GD算法的10倍左右. </p>
+<h5 id="Regulation">Regulation</h5><p>机器学习算法有三部分:<br>1), loss函数.<br>2), optimization, 求解算法<br>3), regulation</p>
+<p>前面降了loss 函数, 以及求解算法.  这个提下regulation<br>一般有L1, 和L2<br>L2 连续可求导, 比较简单. 直接加上就行.<br>L1 连续, 但是在0点不可导. 稍微麻烦点.<br>处理的逻辑是:在０点做平滑．　并且在更新时，不能超过同一象限．　</p>
+<h5 id="End">End</h5><p>总结了之前实现的LR算法. 从数学定义, 到优化求解, 以及求解伪代码.<br>可以看到, 其实优化求解, regulation 都是通用的. 前提是, 定义的loss函数可以求导.<br>把logistic link 函数换乘其他的, 就可以解别的问题.  如linear regression, svm等等. </p>
+
+        
+        
+        <p class="article-more-link">
+          
+       </p>
+    </div>
+    <footer class="article-footer clearfix">
+<div class="article-catetags">
+
+
+  <div class="article-tags">
+  
+  <span></span> <a href="/blog/tags/机器学习/">机器学习</a>
+  </div>
+
+</div>
+
+
+
+
+<div class="comments-count">
+	
+	  	<span></span>
+		<a href="/blog/2015/07/20/lr/#comments" class="ds-thread-count comments-count-link" data-thread-key="2015/07/20/lr/" data-count-type="comments">&nbsp;</a>
+	
+</div>
+
+</footer>
+
+
+    </article>
+
+
+
+
+
+
+   
+    
+    <article class="post-expand post" itemprop="articleBody"> 
+        <header class="article-info clearfix">
+  <h1 itemprop="name">
+    
       <a href="/blog/2015/07/17/celery-kombu/" title="理解celery调度流程(1) Kombu消息处理" itemprop="url">理解celery调度流程(1) Kombu消息处理</a>
   </h1>
   <p class="article-author">By
@@ -517,13 +622,7 @@
 			
 		
 			
-		
-			
-		
-			
-		
-			
-		
+				<li><a href="/blog/tags/机器学习/" title="机器学习">机器学习<sup>1</sup></a></li>
 			
 		
 		</ul>
