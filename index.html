@@ -80,6 +80,86 @@
         <header class="article-info clearfix">
   <h1 itemprop="name">
     
+      <a href="/blog/2015/07/17/celery-kombu/" title="理解celery调度流程(1) Kombu消息处理" itemprop="url">理解celery调度流程(1) Kombu消息处理</a>
+  </h1>
+  <p class="article-author">By
+       
+		<a href="/blog/about" title="yl" target="_blank" itemprop="author">yl</a>
+		
+  <p class="article-time">
+    <time datetime="2015-07-17T09:59:25.000Z" itemprop="datePublished"> 发表于 2015-07-17</time>
+    
+  </p>
+</header>
+    <div class="article-content">
+        
+        <h3 id="理解celery调度流程(1)_Kombu消息处理">理解celery调度流程(1) Kombu消息处理</h3><p>celery 是一个分布式的消息管理, 任务调度系统.<br>之前用户hbase scan 任务上, 非常好,并且简单的解决遇到的问题.<br>目前计划基于celery, 做一个能替代crontab 部署, 并且进一步对任务进行并发控制等的任务提交平台.<br>所以需要进一步的了解celery执行的过程. </p>
+<p>celery 基于Kombu, 后者是一个封装AMQP的消息库. </p>
+<h4 id="AMQP">AMQP</h4><p>AMQP全称Advanced Message Queuing Protocol，是一个开放标准协议，定义一个异步消息传递所使用的应用层协议规范。<br>如果之前接触过zeromq, rabbitmq等对一下这些概念不会陌生</p>
+<p>Producer: 生成着, 发布消息. 比如, 生成任务.<br>Broker:     收集, 管理, 发布消息<br>Exchange:   想象邮局, 是消息的转发机制<br>Queues:    消息的队列.<br>Consumer:  处理消息. </p>
+<h4 id="Kombu">Kombu</h4><p>Kombu 是对AMQP的封装. 看Kombu 官网上一个简单的例子.  能对这个模型有比较好的理解.<br>文档地址:  <a href="http://kombu.readthedocs.org/en/latest/userguide/examples.html" target="_blank" rel="external"> http://kombu.readthedocs.org/en/latest/userguide/examples.html </a><br>这样对celery 提交任务. 处理任务理解起来也比较方便了. </p>
+<ul>
+<li><p>Exchange, Queue<br>queues.py</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">from</span> kombu <span class="keyword">import</span> Exchange, Queue</span><br><span class="line"></span><br><span class="line">task_exchange = Exchange(<span class="string">'tasks'</span>, type=<span class="string">'direct'</span>)</span><br><span class="line">task_queues = [Queue(<span class="string">'hipri'</span>, task_exchange, routing_key=<span class="string">'hipri'</span>),</span><br><span class="line">               Queue(<span class="string">'midpri'</span>, task_exchange, routing_key=<span class="string">'midpri'</span>),</span><br><span class="line">               Queue(<span class="string">'lopri'</span>, task_exchange, routing_key=<span class="string">'lopri'</span>)]</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>Worker</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">from</span> kombu.mixins <span class="keyword">import</span> ConsumerMixin</span><br><span class="line"><span class="keyword">from</span> kombu.log <span class="keyword">import</span> get_logger</span><br><span class="line"><span class="keyword">from</span> kombu.utils <span class="keyword">import</span> kwdict, reprcall</span><br><span class="line"></span><br><span class="line"><span class="keyword">from</span> .queues <span class="keyword">import</span> task_queues</span><br><span class="line"></span><br><span class="line">logger = get_logger(__name__)</span><br><span class="line"></span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">Worker</span><span class="params">(ConsumerMixin)</span>:</span></span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">__init__</span><span class="params">(self, connection)</span>:</span></span><br><span class="line">        self.connection = connection</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">get_consumers</span><span class="params">(self, Consumer, channel)</span>:</span></span><br><span class="line">        <span class="keyword">return</span> [Consumer(queues=task_queues,</span><br><span class="line">                         accept=[<span class="string">'pickle'</span>, <span class="string">'json'</span>],</span><br><span class="line">                         callbacks=[self.process_task])]</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">process_task</span><span class="params">(self, body, message)</span>:</span></span><br><span class="line">        fun = body[<span class="string">'fun'</span>]</span><br><span class="line">        args = body[<span class="string">'args'</span>]</span><br><span class="line">        kwargs = body[<span class="string">'kwargs'</span>]</span><br><span class="line">        logger.info(<span class="string">'Got task: %s'</span>, reprcall(fun.__name__, args, kwargs))</span><br><span class="line">        <span class="keyword">try</span>:</span><br><span class="line">            fun(*args, **kwdict(kwargs))</span><br><span class="line">        <span class="keyword">except</span> Exception <span class="keyword">as</span> exc:</span><br><span class="line">            logger.error(<span class="string">'task raised exception: %r'</span>, exc)</span><br><span class="line">        message.ack()</span><br><span class="line"></span><br><span class="line"><span class="keyword">if</span> __name__ == <span class="string">'__main__'</span>:</span><br><span class="line">    <span class="keyword">from</span> kombu <span class="keyword">import</span> Connection</span><br><span class="line">    <span class="keyword">from</span> kombu.utils.debug <span class="keyword">import</span> setup_logging</span><br><span class="line">    <span class="comment"># setup root logger</span></span><br><span class="line">    setup_logging(loglevel=<span class="string">'INFO'</span>, loggers=[<span class="string">''</span>])</span><br><span class="line"></span><br><span class="line">    <span class="keyword">with</span> Connection(<span class="string">'amqp://guest:guest@localhost:5672//'</span>) <span class="keyword">as</span> conn:</span><br><span class="line">        <span class="keyword">try</span>:</span><br><span class="line">            worker = Worker(conn)</span><br><span class="line">            worker.run()</span><br><span class="line">        <span class="keyword">except</span> KeyboardInterrupt:</span><br><span class="line">            print(<span class="string">'bye bye'</span>)</span><br></pre></td></tr></table></figure>
+</li>
+</ul>
+<p>worker 就是Consumer 从queue 获取任务. 然后处理. </p>
+<ul>
+<li><p>定义task<br>tasks.py</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">hello_task</span><span class="params">(who=<span class="string">"world"</span>)</span>:</span></span><br><span class="line">    print(<span class="string">"Hello %s"</span> % (who, ))</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>client 定义producer<br>client.py:</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">from</span> kombu.pools <span class="keyword">import</span> producers</span><br><span class="line"></span><br><span class="line"><span class="keyword">from</span> .queues <span class="keyword">import</span> task_exchange</span><br><span class="line"></span><br><span class="line">priority_to_routing_key = &#123;<span class="string">'high'</span>: <span class="string">'hipri'</span>,</span><br><span class="line">                           <span class="string">'mid'</span>: <span class="string">'midpri'</span>,</span><br><span class="line">                           <span class="string">'low'</span>: <span class="string">'lopri'</span>&#125;</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">send_as_task</span><span class="params">(connection, fun, args=<span class="params">()</span>, kwargs=&#123;&#125;, priority=<span class="string">'mid'</span>)</span>:</span></span><br><span class="line">    payload = &#123;<span class="string">'fun'</span>: fun, <span class="string">'args'</span>: args, <span class="string">'kwargs'</span>: kwargs&#125;</span><br><span class="line">    routing_key = priority_to_routing_key[priority]</span><br><span class="line"></span><br><span class="line">    <span class="keyword">with</span> producers[connection].acquire(block=<span class="keyword">True</span>) <span class="keyword">as</span> producer:</span><br><span class="line">        producer.publish(payload,</span><br><span class="line">                         serializer=<span class="string">'pickle'</span>,</span><br><span class="line">                         compression=<span class="string">'bzip2'</span>,</span><br><span class="line">                         exchange=task_exchange,</span><br><span class="line">                         declare=[task_exchange],</span><br><span class="line">                         routing_key=routing_key)</span><br><span class="line"></span><br><span class="line"><span class="keyword">if</span> __name__ == <span class="string">'__main__'</span>:</span><br><span class="line">    <span class="keyword">from</span> kombu <span class="keyword">import</span> Connection</span><br><span class="line">    <span class="keyword">from</span> .tasks <span class="keyword">import</span> hello_task</span><br><span class="line"></span><br><span class="line">    connection = Connection(<span class="string">'amqp://guest:guest@localhost:5672//'</span>)</span><br><span class="line">    send_as_task(connection, fun=hello_task, args=(<span class="string">'Kombu'</span>, ), kwargs=&#123;&#125;,</span><br><span class="line">                 priority=<span class="string">'high'</span>)</span><br></pre></td></tr></table></figure>
+</li>
+</ul>
+<p>熟悉这个例子, 再去看celery 任务的启动和调度, 就容易多了. </p>
+
+        
+        
+        <p class="article-more-link">
+          
+       </p>
+    </div>
+    <footer class="article-footer clearfix">
+<div class="article-catetags">
+
+
+  <div class="article-tags">
+  
+  <span></span> <a href="/blog/tags/celery/">celery</a>
+  </div>
+
+</div>
+
+
+
+
+<div class="comments-count">
+	
+	  	<span></span>
+		<a href="/blog/2015/07/17/celery-kombu/#comments" class="ds-thread-count comments-count-link" data-thread-key="2015/07/17/celery-kombu/" data-count-type="comments">&nbsp;</a>
+	
+</div>
+
+</footer>
+
+
+    </article>
+
+
+
+
+
+
+   
+    
+    <article class="post-expand post" itemprop="articleBody"> 
+        <header class="article-info clearfix">
+  <h1 itemprop="name">
+    
       <a href="/blog/2015/07/16/celery-basic/" title="基于celery的hbase scan任务调度" itemprop="url">基于celery的hbase scan任务调度</a>
   </h1>
   <p class="article-author">By
@@ -429,11 +509,21 @@
 		<ul class="clearfix">
 		
 			
+				<li><a href="/blog/tags/celery/" title="celery">celery<sup>2</sup></a></li>
+			
+		
+			
 				<li><a href="/blog/tags/hbase/" title="hbase">hbase<sup>1</sup></a></li>
 			
 		
 			
-				<li><a href="/blog/tags/celery/" title="celery">celery<sup>1</sup></a></li>
+		
+			
+		
+			
+		
+			
+		
 			
 		
 		</ul>

@@ -1,0 +1,512 @@
+
+ <!DOCTYPE HTML>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  
+    <title>理解celery调度流程(1) Kombu消息处理 | yl</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1,user-scalable=no">
+    
+    <meta name="author" content="yl">
+    
+
+    
+    <meta name="description" content="理解celery调度流程(1) Kombu消息处理celery 是一个分布式的消息管理, 任务调度系统.之前用户hbase scan 任务上, 非常好,并且简单的解决遇到的问题.目前计划基于celery, 做一个能替代crontab 部署, 并且进一步对任务进行并发控制等的任务提交平台.所以需要进一步的了解celery执行的过程. 
+celery 基于Kombu, 后者是一个封装AMQP的消息库.">
+<meta property="og:type" content="article">
+<meta property="og:title" content="理解celery调度流程(1) Kombu消息处理">
+<meta property="og:url" content="http://foreveryl.github.io/blog/2015/07/17/celery-kombu/index.html">
+<meta property="og:site_name" content="yl">
+<meta property="og:description" content="理解celery调度流程(1) Kombu消息处理celery 是一个分布式的消息管理, 任务调度系统.之前用户hbase scan 任务上, 非常好,并且简单的解决遇到的问题.目前计划基于celery, 做一个能替代crontab 部署, 并且进一步对任务进行并发控制等的任务提交平台.所以需要进一步的了解celery执行的过程. 
+celery 基于Kombu, 后者是一个封装AMQP的消息库.">
+<meta property="og:updated_time" content="2015-07-17T10:07:26.996Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="理解celery调度流程(1) Kombu消息处理">
+<meta name="twitter:description" content="理解celery调度流程(1) Kombu消息处理celery 是一个分布式的消息管理, 任务调度系统.之前用户hbase scan 任务上, 非常好,并且简单的解决遇到的问题.目前计划基于celery, 做一个能替代crontab 部署, 并且进一步对任务进行并发控制等的任务提交平台.所以需要进一步的了解celery执行的过程. 
+celery 基于Kombu, 后者是一个封装AMQP的消息库.">
+
+    
+    <link rel="alternative" href="/atom.xml" title="yl" type="application/atom+xml">
+    
+    
+    <link rel="icon" href="/blog/img/favicon.ico">
+    
+    
+    <link rel="apple-touch-icon" href="/blog/img/jacman.jpg">
+    <link rel="apple-touch-icon-precomposed" href="/blog/img/jacman.jpg">
+    
+    <link rel="stylesheet" href="/blog/css/style.css" type="text/css">
+</head>
+
+  <body>
+    <header>
+      
+<div>
+		
+			<div id="imglogo">
+				<a href="/blog/"><img src="/blog/img/logo.png" alt="yl" title="yl"/></a>
+			</div>
+			
+			<div id="textlogo">
+				<h1 class="site-name"><a href="/blog/" title="yl">yl</a></h1>
+				<h2 class="blog-motto"></h2>
+			</div>
+			<div class="navbar"><a class="navbutton navmobile" href="#" title="菜单">
+			</a></div>
+			<nav class="animated">
+				<ul>
+					<ul>
+					 
+						<li><a href="/blog/">Home</a></li>
+					
+						<li><a href="/blog/archives">Archives</a></li>
+					
+						<li><a href="/blog/about">About</a></li>
+					
+					<li>
+ 					
+						<form class="search" action="http://foreveryl.github.io/blog/" target="_blank">
+							<label>Search</label>
+						<input name="s" type="hidden" value= 50b788a343a018f0fbf0438101dd3c7d ><input type="text" name="q" size="30" placeholder="搜索"><br>
+						</form>
+					
+					</li>
+				</ul>
+			</nav>			
+</div>
+    </header>
+    <div id="container">
+      <div id="main" class="post" itemscope itemprop="blogPost">
+  
+	<article itemprop="articleBody"> 
+		<header class="article-info clearfix">
+  <h1 itemprop="name">
+    
+      <a href="/blog/2015/07/17/celery-kombu/" title="理解celery调度流程(1) Kombu消息处理" itemprop="url">理解celery调度流程(1) Kombu消息处理</a>
+  </h1>
+  <p class="article-author">By
+       
+		<a href="/blog/about" title="yl" target="_blank" itemprop="author">yl</a>
+		
+  <p class="article-time">
+    <time datetime="2015-07-17T09:59:25.000Z" itemprop="datePublished"> 发表于 2015-07-17</time>
+    
+  </p>
+</header>
+	<div class="article-content">
+		
+		<div id="toc" class="toc-article">
+			<strong class="toc-title">文章目录</strong>
+		
+			<ol class="toc"><li class="toc-item toc-level-3"><a class="toc-link" href="#理解celery调度流程(1)_Kombu消息处理"><span class="toc-number">1.</span> <span class="toc-text">理解celery调度流程(1) Kombu消息处理</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#AMQP"><span class="toc-number">1.1.</span> <span class="toc-text">AMQP</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#Kombu"><span class="toc-number">1.2.</span> <span class="toc-text">Kombu</span></a></li></ol></li></ol>
+		
+		</div>
+		
+		<h3 id="理解celery调度流程(1)_Kombu消息处理">理解celery调度流程(1) Kombu消息处理</h3><p>celery 是一个分布式的消息管理, 任务调度系统.<br>之前用户hbase scan 任务上, 非常好,并且简单的解决遇到的问题.<br>目前计划基于celery, 做一个能替代crontab 部署, 并且进一步对任务进行并发控制等的任务提交平台.<br>所以需要进一步的了解celery执行的过程. </p>
+<p>celery 基于Kombu, 后者是一个封装AMQP的消息库. </p>
+<h4 id="AMQP">AMQP</h4><p>AMQP全称Advanced Message Queuing Protocol，是一个开放标准协议，定义一个异步消息传递所使用的应用层协议规范。<br>如果之前接触过zeromq, rabbitmq等对一下这些概念不会陌生</p>
+<p>Producer: 生成着, 发布消息. 比如, 生成任务.<br>Broker:     收集, 管理, 发布消息<br>Exchange:   想象邮局, 是消息的转发机制<br>Queues:    消息的队列.<br>Consumer:  处理消息. </p>
+<h4 id="Kombu">Kombu</h4><p>Kombu 是对AMQP的封装. 看Kombu 官网上一个简单的例子.  能对这个模型有比较好的理解.<br>文档地址:  <a href="http://kombu.readthedocs.org/en/latest/userguide/examples.html" target="_blank" rel="external"> http://kombu.readthedocs.org/en/latest/userguide/examples.html </a><br>这样对celery 提交任务. 处理任务理解起来也比较方便了. </p>
+<ul>
+<li><p>Exchange, Queue<br>queues.py</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">from</span> kombu <span class="keyword">import</span> Exchange, Queue</span><br><span class="line"></span><br><span class="line">task_exchange = Exchange(<span class="string">'tasks'</span>, type=<span class="string">'direct'</span>)</span><br><span class="line">task_queues = [Queue(<span class="string">'hipri'</span>, task_exchange, routing_key=<span class="string">'hipri'</span>),</span><br><span class="line">               Queue(<span class="string">'midpri'</span>, task_exchange, routing_key=<span class="string">'midpri'</span>),</span><br><span class="line">               Queue(<span class="string">'lopri'</span>, task_exchange, routing_key=<span class="string">'lopri'</span>)]</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>Worker</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">from</span> kombu.mixins <span class="keyword">import</span> ConsumerMixin</span><br><span class="line"><span class="keyword">from</span> kombu.log <span class="keyword">import</span> get_logger</span><br><span class="line"><span class="keyword">from</span> kombu.utils <span class="keyword">import</span> kwdict, reprcall</span><br><span class="line"></span><br><span class="line"><span class="keyword">from</span> .queues <span class="keyword">import</span> task_queues</span><br><span class="line"></span><br><span class="line">logger = get_logger(__name__)</span><br><span class="line"></span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">Worker</span><span class="params">(ConsumerMixin)</span>:</span></span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">__init__</span><span class="params">(self, connection)</span>:</span></span><br><span class="line">        self.connection = connection</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">get_consumers</span><span class="params">(self, Consumer, channel)</span>:</span></span><br><span class="line">        <span class="keyword">return</span> [Consumer(queues=task_queues,</span><br><span class="line">                         accept=[<span class="string">'pickle'</span>, <span class="string">'json'</span>],</span><br><span class="line">                         callbacks=[self.process_task])]</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">process_task</span><span class="params">(self, body, message)</span>:</span></span><br><span class="line">        fun = body[<span class="string">'fun'</span>]</span><br><span class="line">        args = body[<span class="string">'args'</span>]</span><br><span class="line">        kwargs = body[<span class="string">'kwargs'</span>]</span><br><span class="line">        logger.info(<span class="string">'Got task: %s'</span>, reprcall(fun.__name__, args, kwargs))</span><br><span class="line">        <span class="keyword">try</span>:</span><br><span class="line">            fun(*args, **kwdict(kwargs))</span><br><span class="line">        <span class="keyword">except</span> Exception <span class="keyword">as</span> exc:</span><br><span class="line">            logger.error(<span class="string">'task raised exception: %r'</span>, exc)</span><br><span class="line">        message.ack()</span><br><span class="line"></span><br><span class="line"><span class="keyword">if</span> __name__ == <span class="string">'__main__'</span>:</span><br><span class="line">    <span class="keyword">from</span> kombu <span class="keyword">import</span> Connection</span><br><span class="line">    <span class="keyword">from</span> kombu.utils.debug <span class="keyword">import</span> setup_logging</span><br><span class="line">    <span class="comment"># setup root logger</span></span><br><span class="line">    setup_logging(loglevel=<span class="string">'INFO'</span>, loggers=[<span class="string">''</span>])</span><br><span class="line"></span><br><span class="line">    <span class="keyword">with</span> Connection(<span class="string">'amqp://guest:guest@localhost:5672//'</span>) <span class="keyword">as</span> conn:</span><br><span class="line">        <span class="keyword">try</span>:</span><br><span class="line">            worker = Worker(conn)</span><br><span class="line">            worker.run()</span><br><span class="line">        <span class="keyword">except</span> KeyboardInterrupt:</span><br><span class="line">            print(<span class="string">'bye bye'</span>)</span><br></pre></td></tr></table></figure>
+</li>
+</ul>
+<p>worker 就是Consumer 从queue 获取任务. 然后处理. </p>
+<ul>
+<li><p>定义task<br>tasks.py</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">hello_task</span><span class="params">(who=<span class="string">"world"</span>)</span>:</span></span><br><span class="line">    print(<span class="string">"Hello %s"</span> % (who, ))</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>client 定义producer<br>client.py:</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">from</span> kombu.pools <span class="keyword">import</span> producers</span><br><span class="line"></span><br><span class="line"><span class="keyword">from</span> .queues <span class="keyword">import</span> task_exchange</span><br><span class="line"></span><br><span class="line">priority_to_routing_key = &#123;<span class="string">'high'</span>: <span class="string">'hipri'</span>,</span><br><span class="line">                           <span class="string">'mid'</span>: <span class="string">'midpri'</span>,</span><br><span class="line">                           <span class="string">'low'</span>: <span class="string">'lopri'</span>&#125;</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">send_as_task</span><span class="params">(connection, fun, args=<span class="params">()</span>, kwargs=&#123;&#125;, priority=<span class="string">'mid'</span>)</span>:</span></span><br><span class="line">    payload = &#123;<span class="string">'fun'</span>: fun, <span class="string">'args'</span>: args, <span class="string">'kwargs'</span>: kwargs&#125;</span><br><span class="line">    routing_key = priority_to_routing_key[priority]</span><br><span class="line"></span><br><span class="line">    <span class="keyword">with</span> producers[connection].acquire(block=<span class="keyword">True</span>) <span class="keyword">as</span> producer:</span><br><span class="line">        producer.publish(payload,</span><br><span class="line">                         serializer=<span class="string">'pickle'</span>,</span><br><span class="line">                         compression=<span class="string">'bzip2'</span>,</span><br><span class="line">                         exchange=task_exchange,</span><br><span class="line">                         declare=[task_exchange],</span><br><span class="line">                         routing_key=routing_key)</span><br><span class="line"></span><br><span class="line"><span class="keyword">if</span> __name__ == <span class="string">'__main__'</span>:</span><br><span class="line">    <span class="keyword">from</span> kombu <span class="keyword">import</span> Connection</span><br><span class="line">    <span class="keyword">from</span> .tasks <span class="keyword">import</span> hello_task</span><br><span class="line"></span><br><span class="line">    connection = Connection(<span class="string">'amqp://guest:guest@localhost:5672//'</span>)</span><br><span class="line">    send_as_task(connection, fun=hello_task, args=(<span class="string">'Kombu'</span>, ), kwargs=&#123;&#125;,</span><br><span class="line">                 priority=<span class="string">'high'</span>)</span><br></pre></td></tr></table></figure>
+</li>
+</ul>
+<p>熟悉这个例子, 再去看celery 任务的启动和调度, 就容易多了. </p>
+  
+	</div>
+		<footer class="article-footer clearfix">
+<div class="article-catetags">
+
+
+  <div class="article-tags">
+  
+  <span></span> <a href="/blog/tags/celery/">celery</a>
+  </div>
+
+</div>
+
+
+
+	<div class="article-share" id="share">
+	
+	  <div data-url="http://foreveryl.github.io/blog/2015/07/17/celery-kombu/" data-title="理解celery调度流程(1) Kombu消息处理 | yl" data-tsina="null" class="share clearfix">
+	  </div>
+	
+	</div>
+
+
+</footer>
+
+   	       
+	</article>
+	
+<nav class="article-nav clearfix">
+ 
+
+<div class="next">
+<a href="/blog/2015/07/16/celery-basic/"  title="基于celery的hbase scan任务调度">
+ <strong>下一篇：</strong><br/> 
+ <span>基于celery的hbase scan任务调度
+</span>
+</a>
+</div>
+
+</nav>
+
+	
+<section id="comments" class="comment">
+	<div class="ds-thread" data-thread-key="2015/07/17/celery-kombu/" data-title="理解celery调度流程(1) Kombu消息处理" data-url="http://foreveryl.github.io/blog/2015/07/17/celery-kombu/"></div>
+</section>
+
+
+</div>  
+      <div class="openaside"><a class="navbutton" href="#" title="显示侧边栏"></a></div>
+
+  <div id="toc" class="toc-aside">
+  <strong class="toc-title">文章目录</strong>
+ 
+ <ol class="toc"><li class="toc-item toc-level-3"><a class="toc-link" href="#理解celery调度流程(1)_Kombu消息处理"><span class="toc-number">1.</span> <span class="toc-text">理解celery调度流程(1) Kombu消息处理</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#AMQP"><span class="toc-number">1.1.</span> <span class="toc-text">AMQP</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#Kombu"><span class="toc-number">1.2.</span> <span class="toc-text">Kombu</span></a></li></ol></li></ol>
+ 
+  </div>
+
+<div id="asidepart">
+<div class="closeaside"><a class="closebutton" href="#" title="隐藏侧边栏"></a></div>
+<aside class="clearfix">
+
+  
+
+  
+<div class="tagslist">
+	<p class="asidetitle">标签</p>
+		<ul class="clearfix">
+		
+			
+				<li><a href="/blog/tags/celery/" title="celery">celery<sup>2</sup></a></li>
+			
+		
+			
+				<li><a href="/blog/tags/hbase/" title="hbase">hbase<sup>1</sup></a></li>
+			
+		
+			
+		
+			
+		
+			
+		
+			
+		
+			
+		
+		</ul>
+</div>
+
+
+  <div class="linkslist">
+  <p class="asidetitle">友情链接</p>
+    <ul>
+        
+          <li>
+            
+            	<a href="https://coderq.com" target="_blank" title="一个面向程序员交流分享的新一代社区">码农圈</a>
+            
+          </li>
+        
+          <li>
+            
+            	<a href="http://wuchong.me" target="_blank" title="Jark&#39;s Blog">Jark&#39;s Blog</a>
+            
+          </li>
+        
+    </ul>
+</div>
+
+  
+
+
+  <div class="rsspart">
+	<a href="/atom.xml" target="_blank" title="rss">RSS 订阅</a>
+</div>
+
+</aside>
+</div>
+    </div>
+    <footer><div id="footer" >
+	
+	
+	<section class="info">
+		<p> Hi ,I&#39;m yl. <br/>
+			null</p>
+	</section>
+	 
+	<div class="social-font" class="clearfix">
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+	</div>
+			
+		
+
+		<p class="copyright">
+		Powered by <a href="http://hexo.io" target="_blank" title="hexo">hexo</a> and Theme by <a href="https://github.com/wuchong/jacman" target="_blank" title="Jacman">Jacman</a> © 2015 
+		
+		<a href="/blog/about" target="_blank" title="yl">yl</a>
+		
+		
+		</p>
+</div>
+</footer>
+    <script src="/blog/js/jquery-2.0.3.min.js"></script>
+<script src="/blog/js/jquery.imagesloaded.min.js"></script>
+<script src="/blog/js/gallery.js"></script>
+<script src="/blog/js/jquery.qrcode-0.12.0.min.js"></script>
+
+<script type="text/javascript">
+$(document).ready(function(){ 
+  $('.navbar').click(function(){
+    $('header nav').toggleClass('shownav');
+  });
+  var myWidth = 0;
+  function getSize(){
+    if( typeof( window.innerWidth ) == 'number' ) {
+      myWidth = window.innerWidth;
+    } else if( document.documentElement && document.documentElement.clientWidth) {
+      myWidth = document.documentElement.clientWidth;
+    };
+  };
+  var m = $('#main'),
+      a = $('#asidepart'),
+      c = $('.closeaside'),
+      o = $('.openaside');
+  c.click(function(){
+    a.addClass('fadeOut').css('display', 'none');
+    o.css('display', 'block').addClass('fadeIn');
+    m.addClass('moveMain');
+  });
+  o.click(function(){
+    o.css('display', 'none').removeClass('beforeFadeIn');
+    a.css('display', 'block').removeClass('fadeOut').addClass('fadeIn');      
+    m.removeClass('moveMain');
+  });
+  $(window).scroll(function(){
+    o.css("top",Math.max(80,260-$(this).scrollTop()));
+  });
+  
+  $(window).resize(function(){
+    getSize(); 
+    if (myWidth >= 1024) {
+      $('header nav').removeClass('shownav');
+    }else{
+      m.removeClass('moveMain');
+      a.css('display', 'block').removeClass('fadeOut');
+      o.css('display', 'none');
+      
+      $('#toc.toc-aside').css('display', 'none');
+        
+    }
+  });
+});
+</script>
+
+<script type="text/javascript">
+$(document).ready(function(){ 
+  var ai = $('.article-content>iframe'),
+      ae = $('.article-content>embed'),
+      t  = $('#toc'),
+      ta = $('#toc.toc-aside'),
+      o  = $('.openaside'),
+      c  = $('.closeaside');
+  if(ai.length>0){
+    ai.wrap('<div class="video-container" />');
+  };
+  if(ae.length>0){
+   ae.wrap('<div class="video-container" />');
+  };
+  c.click(function(){
+    ta.css('display', 'block').addClass('fadeIn');
+  });
+  o.click(function(){
+    ta.css('display', 'none');
+  });
+  $(window).scroll(function(){
+    ta.css("top",Math.max(140,320-$(this).scrollTop()));
+  });
+});
+</script>
+
+
+<script type="text/javascript">
+$(document).ready(function(){ 
+  var $this = $('.share'),
+      url = $this.attr('data-url'),
+      encodedUrl = encodeURIComponent(url),
+      title = $this.attr('data-title'),
+      tsina = $this.attr('data-tsina'),
+      description = $this.attr('description');
+  var html = [
+  '<div class="hoverqrcode clearfix"></div>',
+  '<a class="overlay" id="qrcode"></a>',
+  '<a href="https://www.facebook.com/sharer.php?u=' + encodedUrl + '" class="article-share-facebook" target="_blank" title="Facebook"></a>',
+  '<a href="https://twitter.com/intent/tweet?url=' + encodedUrl + '" class="article-share-twitter" target="_blank" title="Twitter"></a>',
+  '<a href="#qrcode" class="article-share-qrcode" title="微信"></a>',
+  '<a href="http://widget.renren.com/dialog/share?resourceUrl=' + encodedUrl + '&srcUrl=' + encodedUrl + '&title=' + title +'" class="article-share-renren" target="_blank" title="人人"></a>',
+  '<a href="http://service.weibo.com/share/share.php?title='+title+'&url='+encodedUrl +'&ralateUid='+ tsina +'&searchPic=true&style=number' +'" class="article-share-weibo" target="_blank" title="微博"></a>',
+  '<span title="Share to"></span>'
+  ].join('');
+  $this.append(html);
+
+  $('.hoverqrcode').hide();
+
+  var myWidth = 0;
+  function updatehoverqrcode(){
+    if( typeof( window.innerWidth ) == 'number' ) {
+      myWidth = window.innerWidth;
+    } else if( document.documentElement && document.documentElement.clientWidth) {
+      myWidth = document.documentElement.clientWidth;
+    };
+    var qrsize = myWidth > 1024 ? 200:100;
+    var options = {render: 'image', size: qrsize, fill: '#2ca6cb', text: url, radius: 0.5, quiet: 1};
+    var p = $('.article-share-qrcode').position();
+    $('.hoverqrcode').empty().css('width', qrsize).css('height', qrsize)
+                          .css('left', p.left-qrsize/2+20).css('top', p.top-qrsize-10)
+                          .qrcode(options);
+  };
+  $(window).resize(function(){
+    $('.hoverqrcode').hide();
+  });
+  $('.article-share-qrcode').click(function(){
+    updatehoverqrcode();
+    $('.hoverqrcode').toggle();
+  });
+  $('.article-share-qrcode').hover(function(){}, function(){
+      $('.hoverqrcode').hide();
+  });
+});   
+</script>
+
+
+
+<script type="text/javascript">
+  var duoshuoQuery = {short_name:"foreveryl"};
+  (function() {
+    var ds = document.createElement('script');
+    ds.type = 'text/javascript';ds.async = true;
+    ds.src = '//static.duoshuo.com/embed.js';
+    ds.charset = 'UTF-8';
+    (document.getElementsByTagName('head')[0] 
+    || document.getElementsByTagName('body')[0]).appendChild(ds);
+  })();
+</script> 
+
+
+
+
+
+
+
+<link rel="stylesheet" href="/blog/fancybox/jquery.fancybox.css" media="screen" type="text/css">
+<script src="/blog/fancybox/jquery.fancybox.pack.js"></script>
+<script type="text/javascript">
+$(document).ready(function(){ 
+  $('.article-content').each(function(i){
+    $(this).find('img').each(function(){
+      if ($(this).parent().hasClass('fancybox')) return;
+      var alt = this.alt;
+      if (alt) $(this).after('<span class="caption">' + alt + '</span>');
+      $(this).wrap('<a href="' + this.src + '" title="' + alt + '" class="fancybox"></a>');
+    });
+    $(this).find('.fancybox').each(function(){
+      $(this).attr('rel', 'article' + i);
+    });
+  });
+  if($.fancybox){
+    $('.fancybox').fancybox();
+  }
+}); 
+</script>
+
+
+
+<!-- Analytics Begin -->
+
+
+
+<script type="text/javascript">
+var _bdhmProtocol = (("https:" == document.location.protocol) ? " https://" : " http://");
+document.write(unescape("%3Cscript src='" + _bdhmProtocol + "hm.baidu.com/h.js%3F50b788a343a018f0fbf0438101dd3c7d' type='text/javascript'%3E%3C/script%3E"));
+</script>
+
+
+
+<!-- Analytics End -->
+
+<!-- Totop Begin -->
+
+	<div id="totop">
+	<a title="返回顶部"><img src="/blog/img/scrollup.png"/></a>
+	</div>
+	<script src="/blog/js/totop.js"></script>
+
+<!-- Totop End -->
+
+<!-- MathJax Begin -->
+<!-- mathjax config similar to math.stackexchange -->
+
+<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    tex2jax: {
+      inlineMath: [ ['$','$'], ["\\(","\\)"] ],
+      processEscapes: true
+    }
+  });
+</script>
+
+<script type="text/x-mathjax-config">
+    MathJax.Hub.Config({
+      tex2jax: {
+        skipTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']
+      }
+    });
+</script>
+
+<script type="text/x-mathjax-config">
+    MathJax.Hub.Queue(function() {
+        var all = MathJax.Hub.getAllJax(), i;
+        for(i=0; i < all.length; i += 1) {
+            all[i].SourceElement().parentNode.className += ' has-jax';
+        }
+    });
+</script>
+
+<script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML">
+</script>
+
+
+<!-- MathJax End -->
+
+<!-- Tiny_search Begin -->
+
+<!-- Tiny_search End -->
+
+  </body>
+</html>
