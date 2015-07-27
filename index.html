@@ -80,6 +80,252 @@
         <header class="article-info clearfix">
   <h1 itemprop="name">
     
+      <a href="/blog/2015/07/27/xgboost-1/" title="xgboost 代码流程理解" itemprop="url">xgboost 代码流程理解</a>
+  </h1>
+  <p class="article-author">By
+       
+		<a href="/blog/about" title="yl" target="_blank" itemprop="author">yl</a>
+		
+  <p class="article-time">
+    <time datetime="2015-07-27T10:45:01.000Z" itemprop="datePublished"> 发表于 2015-07-27</time>
+    
+  </p>
+</header>
+    <div class="article-content">
+        
+        <h6 id="入口:">入口:</h6><p>xgboost_main.cpp<br><figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">xgboost::BoostLearnTask tsk;</span><br><span class="line"><span class="keyword">int</span> ret = tsk.Run(argc, argv);</span><br></pre></td></tr></table></figure></p>
+<p>作为主要入口. 分别作以下几件事</p>
+<ul>
+<li>initFromConfigure  外部config的参数</li>
+<li>initData   load data, 主要是DMatrix </li>
+<li>TaskTrain()   </li>
+</ul>
+<p>task train 训练过程如下<br>1), InitLearn()<br>2), 多伦迭代</p>
+<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">for</span> i &lt;- <span class="number">0</span>, num_round;   </span><br><span class="line">        learn.UpdateOneIter( ...)</span><br></pre></td></tr></table></figure>
+<p>3), saveModel</p>
+<h5 id="InitLearn_函数:">InitLearn 函数:</h5><p>learn: BoostLearner<br>主要是initModel() 函数<br>1), InitTrainer() 计算feature总数.<br>2), InitObjGBM()<br>这个有两个变量<br>计算一阶(grad), 二阶(hess) 梯度函数.<br>IObjFunction   obj_:    CreateObjFunction  比如: RegLossObj(LossType::kLogisticClassify);<br>注意, 这个梯度和LR 里的稍微不同, 主要取决于线性模型和树模型本身的 loss函数的不同. </p>
+<h5 id="tree的构建:">tree的构建:</h5><p>GradBooster  gbm_:    GBTree</p>
+<h5 id="训练过程:">训练过程:</h5><p>learn.UpdateOneIter( …)<br>1), PredictRaw()<br>2), obj<em>.GetGradient()  对每个样本点, 计算残差.<br>3), gmb</em>.DoBoost<br>在DoBoost 中, 根据updater, 来构建一棵树:</p>
+<h5 id="predictRaw()">predictRaw()</h5><p>对每个样本, 根据feature, 遍历tree, 获取leafIndex tid, 同历史数据累加 leaf_value() 以及leaf_vector<br>为什么要同历史数据累加 [ boosting! ]</p>
+<h5 id="树的生成-">树的生成.</h5><p>以ColMaker 为例:<br><figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">this</span>-&gt;InitData(gpair, *p_fmat, info.root_index, *<span class="keyword">p_t</span>ree);</span><br><span class="line"><span class="keyword">this</span>-&gt;InitNewNode(qexpand_, gpair, *p_fmat, info, *<span class="keyword">p_t</span>ree);</span><br><span class="line">  <span class="keyword">for</span> (<span class="keyword">int</span> depth = <span class="number">0</span>; depth &lt; param.max_depth; ++depth) &#123;   <span class="comment">// 构建一棵树. </span></span><br><span class="line">        <span class="keyword">this</span>-&gt;FindSplit(depth, qexpand_, gpair, p_fmat, info, <span class="keyword">p_t</span>ree);</span><br><span class="line">        <span class="keyword">this</span>-&gt;ResetPosition(qexpand_, p_fmat, *<span class="keyword">p_t</span>ree);</span><br><span class="line">        <span class="keyword">this</span>-&gt;UpdateQueueExpand(*<span class="keyword">p_t</span>ree, &amp;qexpand_);</span><br><span class="line">        <span class="keyword">this</span>-&gt;InitNewNode(qexpand_, gpair, *p_fmat, info, *<span class="keyword">p_t</span>ree);</span><br><span class="line">        <span class="comment">// if nothing left to be expand, break</span></span><br><span class="line">        <span class="keyword">if</span> (qexpand_.size() == <span class="number">0</span>) <span class="keyword">break</span>;</span><br><span class="line">      &#125;</span><br></pre></td></tr></table></figure></p>
+<ul>
+<li>InitData:<br>1), 初始化数据的position<br>2), 去掉deleted data ( hess 为 负的点)<br>3), 抽样feature<br>4), 在树里面增加root  index = 0</li>
+</ul>
+<ul>
+<li><p>InitNewNode<br>初始化root,<br>各个线程里每个data 的position 都归到root节点下. </p>
+<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// update node statistics</span></span><br><span class="line">snode[nid].stats = stats;</span><br><span class="line">snode[nid].root_gain = <span class="keyword">static_cast</span>&lt;<span class="keyword">float</span>&gt;(stats.CalcGain(param));</span><br><span class="line">snode[nid].weight = <span class="keyword">static_cast</span>&lt;<span class="keyword">float</span>&gt;(stats.CalcWeight(param));</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>总体树的构建过程:<br>然后类似于layer traverse tree 一样. 每次生成下一层的待分裂node,<br>qexpand: 待分割的node<br>UpdateQueueExpand, 生成下一层的待分割点.  </p>
+</li>
+</ul>
+
+        
+        
+        <p class="article-more-link">
+          
+       </p>
+    </div>
+    <footer class="article-footer clearfix">
+<div class="article-catetags">
+
+
+  <div class="article-tags">
+  
+  <span></span> <a href="/blog/tags/机器学习/">机器学习</a>
+  </div>
+
+</div>
+
+
+
+
+<div class="comments-count">
+	
+	  	<span></span>
+		<a href="/blog/2015/07/27/xgboost-1/#comments" class="ds-thread-count comments-count-link" data-thread-key="2015/07/27/xgboost-1/" data-count-type="comments">&nbsp;</a>
+	
+</div>
+
+</footer>
+
+
+    </article>
+
+
+
+
+
+
+   
+    
+    <article class="post-expand post" itemprop="articleBody"> 
+        <header class="article-info clearfix">
+  <h1 itemprop="name">
+    
+      <a href="/blog/2015/07/27/word2vector/" title="word2vector 理解" itemprop="url">word2vector 理解</a>
+  </h1>
+  <p class="article-author">By
+       
+		<a href="/blog/about" title="yl" target="_blank" itemprop="author">yl</a>
+		
+  <p class="article-time">
+    <time datetime="2015-07-27T10:44:19.000Z" itemprop="datePublished"> 发表于 2015-07-27</time>
+    
+  </p>
+</header>
+    <div class="article-content">
+        
+        <h5 id="引入:">引入:</h5><p>尽管word2vec是从神经概率语言模型引入的. 但是和神经网络关系其实并不大.  其实质的目标函数是:  (已cbow为例):<br>max p(w | context(w) ) 这个最大似然函数. </p>
+<h5 id="context(w)是什么?">context(w)是什么?</h5><p>这里就有两种解法:</p>
+<ul>
+<li><p>hierachical softmax<br>通过词频构建了一个huffman tree.  (假设字典中有D个词, 那么肯定是有D-1个非叶子节点和D个叶子节点. )<br>然后从根检点到 w 的路径上的中间节点, 认为就是w 的context(w)节点.<br>然后做了个假设:  如果路径节点d 到w 是向左子树进行, 那么就是正样本. 向右就是负样本. </p>
+</li>
+<li><p>negative sampling:<br>这个对负样本的构建更简单了, 简单说就是sampling.<br>这个过程中对高频词有做降权处理. </p>
+</li>
+</ul>
+<h5 id="loss_函数">loss 函数</h5><p>现在问题转化为:<br>对word w,  其vector定义为:　sum( 前后词的向量和),  找到正负样本 d.<br>定义loss 函数:<br>min(1 - sigmod( dot(w, d) ))</p>
+<p>这样就变成典型的矩阵(word—word)矩阵分解的问题了.<br>通过随机梯度下降. 可以求解. </p>
+<p>具体正负样本找的方法:<br>以hierachical softmax为例: 就是huffman树上从word节点到根节点path上的非叶子节点.<br>并且认为定义: 左子树为正, 右子树为负. </p>
+<h5 id="整体训练过程总结">整体训练过程总结</h5><p>以cbow + hierachical softmax为例</p>
+<ul>
+<li>huffman tree 构建.<br>没错, 就是数据结构课本上做编码压缩的那个. </li>
+</ul>
+<p>为什么要用huffman tree?<br>其实不为什么, 作者原文里解释,  因为效果好……<br>不过他确实work. 后续可以考虑相同思路.</p>
+<ul>
+<li><p>word 选择<br>内存优化原因, 低频word 被过滤</p>
+</li>
+<li><p>训练开始<br>1), 模型初始化. word 默认vector<br>包括huffman tree上非叶子节点.</p>
+</li>
+</ul>
+<p>2), 多个线程, 并行开始迭代.<br>a, 从文本中拿到word.  sum 相邻word 的vector 为该word的vector<br>b, 获取正负样本.<br>c, sgd<br>d, 更新word 的vector</p>
+<h5 id="反思,_why_it_works">反思, why it works</h5><p>w2v出来的时候, 流行了一大阵.  大家都觉得效果很好.  什么深度学习等等都扯出来了.<br>看过上面列举的求解流程, 其实和deep learning 没有任何关系. </p>
+<p>那为啥大家都觉得好?<br>个人觉得一下几个原因:</p>
+<ul>
+<li>每个word 定义为左右word 向量之和, 很大程度上保证了相关性. </li>
+<li>训练速度快:<br>多线程 asp 方式更新模型数据. 单机处理, 不加锁, 更新很快. </li>
+<li>热门降权<br>使得低频次word 不会都相似到高频word上. 有了区分性.<br>个人觉得这个是比一般mf 好的原因. </li>
+<li>embedding<br>相比mf, cf 这种计算相似次的方法.  w2v训练处一个可用的向量表示.<br>可以做为input, 用于其他模型中.<br>尝试做了用户query 分类. 很简单的应用, 但是效果也不错. </li>
+</ul>
+<h5 id="End">End</h5><p>当然, word2vec 也不是万能的, 同质训练数据也很重要.<br>至于 向量间加减 这种操作, 个人试用下来, 效果一般. </p>
+<p>参考资料:</p>
+<ul>
+<li>word2vec 中数学原理详解:<br><a href="http://blog.csdn.net/itplus/article/details/37969519" target="_blank" rel="external">http://blog.csdn.net/itplus/article/details/37969519</a></li>
+<li>注解的代码解读:<br><a href="http://blog.csdn.net/lingerlanlan/article/details/38232755" target="_blank" rel="external">http://blog.csdn.net/lingerlanlan/article/details/38232755</a></li>
+</ul>
+
+        
+        
+        <p class="article-more-link">
+          
+       </p>
+    </div>
+    <footer class="article-footer clearfix">
+<div class="article-catetags">
+
+
+  <div class="article-tags">
+  
+  <span></span> <a href="/blog/tags/机器学习/">机器学习</a>
+  </div>
+
+</div>
+
+
+
+
+<div class="comments-count">
+	
+	  	<span></span>
+		<a href="/blog/2015/07/27/word2vector/#comments" class="ds-thread-count comments-count-link" data-thread-key="2015/07/27/word2vector/" data-count-type="comments">&nbsp;</a>
+	
+</div>
+
+</footer>
+
+
+    </article>
+
+
+
+
+
+
+   
+    
+    <article class="post-expand post" itemprop="articleBody"> 
+        <header class="article-info clearfix">
+  <h1 itemprop="name">
+    
+      <a href="/blog/2015/07/27/hbase-common-operations/" title="Hbase 常用操作总结" itemprop="url">Hbase 常用操作总结</a>
+  </h1>
+  <p class="article-author">By
+       
+		<a href="/blog/about" title="yl" target="_blank" itemprop="author">yl</a>
+		
+  <p class="article-time">
+    <time datetime="2015-07-27T10:42:43.000Z" itemprop="datePublished"> 发表于 2015-07-27</time>
+    
+  </p>
+</header>
+    <div class="article-content">
+        
+        <h5 id="Hbase_创建表预分区:">Hbase 创建表预分区:</h5><p>create ‘uaa.udp_passport_id’,<br>{NAME =&gt; ‘p’, VERSIONS =&gt; ‘1’},<br>{NAME =&gt; ‘t’, VERSIONS =&gt; ‘1’, COMPRESSION =&gt; ‘SNAPPY’, TTL =&gt; ‘7776000’},<br>{NAME =&gt; ‘v’, COMPRESSION =&gt; ‘SNAPPY’, VERSIONS =&gt; ‘1’, TTL =&gt; ‘7776000’}<br>{SPLITS_FILE =&gt; ‘splits.txt’}<br>splits.txt 是分区其实, 结束字段. </p>
+<h5 id="Hbase_删除分区_(s):">Hbase 删除分区 (s):</h5><p>1), disable ‘uaa.udp_pc_web’<br>2), alter ‘uaa.udp_pc_web’, { NAME =&gt; ‘s’, METHOD =&gt; ‘delete’ }<br>3), enable ‘uaa.udp_pc_web’</p>
+<h5 id="Hbase_删除表:">Hbase 删除表:</h5><p>1), disable ‘uaa.udp_pc_web’<br>2),drop ‘uaa.udp_pc_web’</p>
+<h5 id="修改表region_split_size:">修改表region split size:</h5><p>disable ‘uaa.udp_passport_id’<br>alter ‘uaa.udp_passport_id’,METHOD =&gt; ‘table_att_unset’,MAX_FILESIZE =&gt; ‘5368709120’  [设置属性]<br>alter ‘uaa.udp_passport_id’, METHOD =&gt; ‘table_att’, MAX_FILESIZE =&gt; ‘5368709120’      [取消设置属性]<br>enable ‘uaa.udp_passport_id’</p>
+<h5 id="hbase_修改_CF_ttl:">hbase 修改 CF ttl:</h5><p>disable ‘uaa.udp_android’<br>alter ‘uaa.udp_android’,{NAME=&gt;’s’, TTL=&gt;’15552000’ }<br>alter ‘uaa.udp_android’,{NAME=&gt;’v’, TTL=&gt;’15552000’ }<br>enable ‘uaa.udp_android’</p>
+<h5 id="hbase_跨级群迁移:">hbase 跨级群迁移:</h5><p>两种方式:<br>1), online模式, flushdb后, 写入.<br>2), offline模式,<br>step1: 源端停止写入, 防止文件发生变化.<br>step2: diskcp方式将数据cp到目标集群.  即可.</p>
+<h5 id="hbase_表权限设置:">hbase 表权限设置:</h5><p>grant ‘xxx’, ‘RW’, ‘uaa.udp_passport_id’<br>user_permission ‘uaa.udp_passport_id’  显示表的权限. </p>
+<h5 id="资料:">资料:</h5><ul>
+<li><p>权威指南最新版<br><a href="http://hbase.apache.org/book.html#arch.bulk.load" target="_blank" rel="external">http://hbase.apache.org/book.html#arch.bulk.load</a></p>
+</li>
+<li><p>api 文档<br><a href="http://archive.cloudera.com/cdh5/cdh/5/hbase-0.98.6-cdh5.2.4/apidocs/index.html" target="_blank" rel="external">http://archive.cloudera.com/cdh5/cdh/5/hbase-0.98.6-cdh5.2.4/apidocs/index.html</a></p>
+</li>
+</ul>
+
+        
+        
+        <p class="article-more-link">
+          
+       </p>
+    </div>
+    <footer class="article-footer clearfix">
+<div class="article-catetags">
+
+
+  <div class="article-tags">
+  
+  <span></span> <a href="/blog/tags/hbase/">hbase</a>
+  </div>
+
+</div>
+
+
+
+
+<div class="comments-count">
+	
+	  	<span></span>
+		<a href="/blog/2015/07/27/hbase-common-operations/#comments" class="ds-thread-count comments-count-link" data-thread-key="2015/07/27/hbase-common-operations/" data-count-type="comments">&nbsp;</a>
+	
+</div>
+
+</footer>
+
+
+    </article>
+
+
+
+
+
+
+   
+    
+    <article class="post-expand post" itemprop="articleBody"> 
+        <header class="article-info clearfix">
+  <h1 itemprop="name">
+    
       <a href="/blog/2015/07/20/lr/" title="LR" itemprop="url">LR</a>
   </h1>
   <p class="article-author">By
@@ -614,15 +860,15 @@
 		<ul class="clearfix">
 		
 			
+				<li><a href="/blog/tags/机器学习/" title="机器学习">机器学习<sup>3</sup></a></li>
+			
+		
+			
+				<li><a href="/blog/tags/hbase/" title="hbase">hbase<sup>2</sup></a></li>
+			
+		
+			
 				<li><a href="/blog/tags/celery/" title="celery">celery<sup>2</sup></a></li>
-			
-		
-			
-				<li><a href="/blog/tags/hbase/" title="hbase">hbase<sup>1</sup></a></li>
-			
-		
-			
-				<li><a href="/blog/tags/机器学习/" title="机器学习">机器学习<sup>1</sup></a></li>
 			
 		
 		</ul>

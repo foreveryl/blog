@@ -4,26 +4,32 @@
 <head>
   <meta charset="UTF-8">
   
-    <title>Hello World | yl</title>
+    <title>word2vector 理解 | yl</title>
     <meta name="viewport" content="width=device-width, initial-scale=1,user-scalable=no">
     
     <meta name="author" content="yl">
     
 
     
-    <meta name="description" content="Welcome to Hexo! This is your very first post. Check documentation for more info. If you get any problems when using Hexo, you can find the answer in troubleshooting or you can ask me on GitHub.
-Quick">
+    <meta name="description" content="引入:尽管word2vec是从神经概率语言模型引入的. 但是和神经网络关系其实并不大.  其实质的目标函数是:  (已cbow为例):max p(w | context(w) ) 这个最大似然函数. 
+context(w)是什么?这里就有两种解法:
+
+hierachical softmax通过词频构建了一个huffman tree.  (假设字典中有D个词, 那么肯定是有D-1个非叶子节点和D个叶">
 <meta property="og:type" content="article">
-<meta property="og:title" content="Hello World">
-<meta property="og:url" content="http://foreveryl.github.io/blog/2015/07/08/hello-world/index.html">
+<meta property="og:title" content="word2vector 理解">
+<meta property="og:url" content="http://foreveryl.github.io/blog/2015/07/27/word2vector/index.html">
 <meta property="og:site_name" content="yl">
-<meta property="og:description" content="Welcome to Hexo! This is your very first post. Check documentation for more info. If you get any problems when using Hexo, you can find the answer in troubleshooting or you can ask me on GitHub.
-Quick">
-<meta property="og:updated_time" content="2015-07-08T07:59:00.238Z">
+<meta property="og:description" content="引入:尽管word2vec是从神经概率语言模型引入的. 但是和神经网络关系其实并不大.  其实质的目标函数是:  (已cbow为例):max p(w | context(w) ) 这个最大似然函数. 
+context(w)是什么?这里就有两种解法:
+
+hierachical softmax通过词频构建了一个huffman tree.  (假设字典中有D个词, 那么肯定是有D-1个非叶子节点和D个叶">
+<meta property="og:updated_time" content="2015-07-27T10:47:41.445Z">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:title" content="Hello World">
-<meta name="twitter:description" content="Welcome to Hexo! This is your very first post. Check documentation for more info. If you get any problems when using Hexo, you can find the answer in troubleshooting or you can ask me on GitHub.
-Quick">
+<meta name="twitter:title" content="word2vector 理解">
+<meta name="twitter:description" content="引入:尽管word2vec是从神经概率语言模型引入的. 但是和神经网络关系其实并不大.  其实质的目标函数是:  (已cbow为例):max p(w | context(w) ) 这个最大似然函数. 
+context(w)是什么?这里就有两种解法:
+
+hierachical softmax通过词频构建了一个huffman tree.  (假设字典中有D个词, 那么肯定是有D-1个非叶子节点和D个叶">
 
     
     <link rel="alternative" href="/atom.xml" title="yl" type="application/atom+xml">
@@ -82,14 +88,14 @@ Quick">
 		<header class="article-info clearfix">
   <h1 itemprop="name">
     
-      <a href="/blog/2015/07/08/hello-world/" title="Hello World" itemprop="url">Hello World</a>
+      <a href="/blog/2015/07/27/word2vector/" title="word2vector 理解" itemprop="url">word2vector 理解</a>
   </h1>
   <p class="article-author">By
        
 		<a href="/blog/about" title="yl" target="_blank" itemprop="author">yl</a>
 		
   <p class="article-time">
-    <time datetime="2015-07-08T07:59:00.238Z" itemprop="datePublished"> 发表于 2015-07-08</time>
+    <time datetime="2015-07-27T10:44:19.000Z" itemprop="datePublished"> 发表于 2015-07-27</time>
     
   </p>
 </header>
@@ -98,24 +104,57 @@ Quick">
 		<div id="toc" class="toc-article">
 			<strong class="toc-title">文章目录</strong>
 		
-			<ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#Quick_Start"><span class="toc-number">1.</span> <span class="toc-text">Quick Start</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#Create_a_new_post"><span class="toc-number">1.1.</span> <span class="toc-text">Create a new post</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#Run_server"><span class="toc-number">1.2.</span> <span class="toc-text">Run server</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#Generate_static_files"><span class="toc-number">1.3.</span> <span class="toc-text">Generate static files</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#Deploy_to_remote_sites"><span class="toc-number">1.4.</span> <span class="toc-text">Deploy to remote sites</span></a></li></ol></li></ol>
+			<ol class="toc"><li class="toc-item toc-level-5"><a class="toc-link" href="#引入:"><span class="toc-number">1.</span> <span class="toc-text">引入:</span></a></li><li class="toc-item toc-level-5"><a class="toc-link" href="#context(w)是什么?"><span class="toc-number">2.</span> <span class="toc-text">context(w)是什么?</span></a></li><li class="toc-item toc-level-5"><a class="toc-link" href="#loss_函数"><span class="toc-number">3.</span> <span class="toc-text">loss 函数</span></a></li><li class="toc-item toc-level-5"><a class="toc-link" href="#整体训练过程总结"><span class="toc-number">4.</span> <span class="toc-text">整体训练过程总结</span></a></li><li class="toc-item toc-level-5"><a class="toc-link" href="#反思,_why_it_works"><span class="toc-number">5.</span> <span class="toc-text">反思, why it works</span></a></li><li class="toc-item toc-level-5"><a class="toc-link" href="#End"><span class="toc-number">6.</span> <span class="toc-text">End</span></a></li></ol>
 		
 		</div>
 		
-		<p>Welcome to <a href="http://hexo.io/" target="_blank" rel="external">Hexo</a>! This is your very first post. Check <a href="http://hexo.io/docs/" target="_blank" rel="external">documentation</a> for more info. If you get any problems when using Hexo, you can find the answer in <a href="http://hexo.io/docs/troubleshooting.html" target="_blank" rel="external">troubleshooting</a> or you can ask me on <a href="https://github.com/hexojs/hexo/issues" target="_blank" rel="external">GitHub</a>.</p>
-<h2 id="Quick_Start">Quick Start</h2><h3 id="Create_a_new_post">Create a new post</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ hexo new <span class="string">"My New Post"</span></span><br></pre></td></tr></table></figure>
-<p>More info: <a href="http://hexo.io/docs/writing.html" target="_blank" rel="external">Writing</a></p>
-<h3 id="Run_server">Run server</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ hexo server</span><br></pre></td></tr></table></figure>
-<p>More info: <a href="http://hexo.io/docs/server.html" target="_blank" rel="external">Server</a></p>
-<h3 id="Generate_static_files">Generate static files</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ hexo generate</span><br></pre></td></tr></table></figure>
-<p>More info: <a href="http://hexo.io/docs/generating.html" target="_blank" rel="external">Generating</a></p>
-<h3 id="Deploy_to_remote_sites">Deploy to remote sites</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ hexo deploy</span><br></pre></td></tr></table></figure>
-<p>More info: <a href="http://hexo.io/docs/deployment.html" target="_blank" rel="external">Deployment</a></p>
+		<h5 id="引入:">引入:</h5><p>尽管word2vec是从神经概率语言模型引入的. 但是和神经网络关系其实并不大.  其实质的目标函数是:  (已cbow为例):<br>max p(w | context(w) ) 这个最大似然函数. </p>
+<h5 id="context(w)是什么?">context(w)是什么?</h5><p>这里就有两种解法:</p>
+<ul>
+<li><p>hierachical softmax<br>通过词频构建了一个huffman tree.  (假设字典中有D个词, 那么肯定是有D-1个非叶子节点和D个叶子节点. )<br>然后从根检点到 w 的路径上的中间节点, 认为就是w 的context(w)节点.<br>然后做了个假设:  如果路径节点d 到w 是向左子树进行, 那么就是正样本. 向右就是负样本. </p>
+</li>
+<li><p>negative sampling:<br>这个对负样本的构建更简单了, 简单说就是sampling.<br>这个过程中对高频词有做降权处理. </p>
+</li>
+</ul>
+<h5 id="loss_函数">loss 函数</h5><p>现在问题转化为:<br>对word w,  其vector定义为:　sum( 前后词的向量和),  找到正负样本 d.<br>定义loss 函数:<br>min(1 - sigmod( dot(w, d) ))</p>
+<p>这样就变成典型的矩阵(word—word)矩阵分解的问题了.<br>通过随机梯度下降. 可以求解. </p>
+<p>具体正负样本找的方法:<br>以hierachical softmax为例: 就是huffman树上从word节点到根节点path上的非叶子节点.<br>并且认为定义: 左子树为正, 右子树为负. </p>
+<h5 id="整体训练过程总结">整体训练过程总结</h5><p>以cbow + hierachical softmax为例</p>
+<ul>
+<li>huffman tree 构建.<br>没错, 就是数据结构课本上做编码压缩的那个. </li>
+</ul>
+<p>为什么要用huffman tree?<br>其实不为什么, 作者原文里解释,  因为效果好……<br>不过他确实work. 后续可以考虑相同思路.</p>
+<ul>
+<li><p>word 选择<br>内存优化原因, 低频word 被过滤</p>
+</li>
+<li><p>训练开始<br>1), 模型初始化. word 默认vector<br>包括huffman tree上非叶子节点.</p>
+</li>
+</ul>
+<p>2), 多个线程, 并行开始迭代.<br>a, 从文本中拿到word.  sum 相邻word 的vector 为该word的vector<br>b, 获取正负样本.<br>c, sgd<br>d, 更新word 的vector</p>
+<h5 id="反思,_why_it_works">反思, why it works</h5><p>w2v出来的时候, 流行了一大阵.  大家都觉得效果很好.  什么深度学习等等都扯出来了.<br>看过上面列举的求解流程, 其实和deep learning 没有任何关系. </p>
+<p>那为啥大家都觉得好?<br>个人觉得一下几个原因:</p>
+<ul>
+<li>每个word 定义为左右word 向量之和, 很大程度上保证了相关性. </li>
+<li>训练速度快:<br>多线程 asp 方式更新模型数据. 单机处理, 不加锁, 更新很快. </li>
+<li>热门降权<br>使得低频次word 不会都相似到高频word上. 有了区分性.<br>个人觉得这个是比一般mf 好的原因. </li>
+<li>embedding<br>相比mf, cf 这种计算相似次的方法.  w2v训练处一个可用的向量表示.<br>可以做为input, 用于其他模型中.<br>尝试做了用户query 分类. 很简单的应用, 但是效果也不错. </li>
+</ul>
+<h5 id="End">End</h5><p>当然, word2vec 也不是万能的, 同质训练数据也很重要.<br>至于 向量间加减 这种操作, 个人试用下来, 效果一般. </p>
+<p>参考资料:</p>
+<ul>
+<li>word2vec 中数学原理详解:<br><a href="http://blog.csdn.net/itplus/article/details/37969519" target="_blank" rel="external">http://blog.csdn.net/itplus/article/details/37969519</a></li>
+<li>注解的代码解读:<br><a href="http://blog.csdn.net/lingerlanlan/article/details/38232755" target="_blank" rel="external">http://blog.csdn.net/lingerlanlan/article/details/38232755</a></li>
+</ul>
   
 	</div>
 		<footer class="article-footer clearfix">
 <div class="article-catetags">
 
+
+  <div class="article-tags">
+  
+  <span></span> <a href="/blog/tags/机器学习/">机器学习</a>
+  </div>
 
 </div>
 
@@ -123,7 +162,7 @@ Quick">
 
 	<div class="article-share" id="share">
 	
-	  <div data-url="http://foreveryl.github.io/blog/2015/07/08/hello-world/" data-title="Hello World | yl" data-tsina="null" class="share clearfix">
+	  <div data-url="http://foreveryl.github.io/blog/2015/07/27/word2vector/" data-title="word2vector 理解 | yl" data-tsina="null" class="share clearfix">
 	  </div>
 	
 	</div>
@@ -137,19 +176,27 @@ Quick">
 <nav class="article-nav clearfix">
  
  <div class="prev" >
- <a href="/blog/2015/07/08/first-page/" title="GitHub 博客搭建笔记">
+ <a href="/blog/2015/07/27/xgboost-1/" title="xgboost 代码流程理解">
   <strong>上一篇：</strong><br/>
   <span>
-  GitHub 博客搭建笔记</span>
+  xgboost 代码流程理解</span>
 </a>
 </div>
 
+
+<div class="next">
+<a href="/blog/2015/07/27/hbase-common-operations/"  title="Hbase 常用操作总结">
+ <strong>下一篇：</strong><br/> 
+ <span>Hbase 常用操作总结
+</span>
+</a>
+</div>
 
 </nav>
 
 	
 <section id="comments" class="comment">
-	<div class="ds-thread" data-thread-key="2015/07/08/hello-world/" data-title="Hello World" data-url="http://foreveryl.github.io/blog/2015/07/08/hello-world/"></div>
+	<div class="ds-thread" data-thread-key="2015/07/27/word2vector/" data-title="word2vector 理解" data-url="http://foreveryl.github.io/blog/2015/07/27/word2vector/"></div>
 </section>
 
 
@@ -159,7 +206,7 @@ Quick">
   <div id="toc" class="toc-aside">
   <strong class="toc-title">文章目录</strong>
  
- <ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#Quick_Start"><span class="toc-number">1.</span> <span class="toc-text">Quick Start</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#Create_a_new_post"><span class="toc-number">1.1.</span> <span class="toc-text">Create a new post</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#Run_server"><span class="toc-number">1.2.</span> <span class="toc-text">Run server</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#Generate_static_files"><span class="toc-number">1.3.</span> <span class="toc-text">Generate static files</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#Deploy_to_remote_sites"><span class="toc-number">1.4.</span> <span class="toc-text">Deploy to remote sites</span></a></li></ol></li></ol>
+ <ol class="toc"><li class="toc-item toc-level-5"><a class="toc-link" href="#引入:"><span class="toc-number">1.</span> <span class="toc-text">引入:</span></a></li><li class="toc-item toc-level-5"><a class="toc-link" href="#context(w)是什么?"><span class="toc-number">2.</span> <span class="toc-text">context(w)是什么?</span></a></li><li class="toc-item toc-level-5"><a class="toc-link" href="#loss_函数"><span class="toc-number">3.</span> <span class="toc-text">loss 函数</span></a></li><li class="toc-item toc-level-5"><a class="toc-link" href="#整体训练过程总结"><span class="toc-number">4.</span> <span class="toc-text">整体训练过程总结</span></a></li><li class="toc-item toc-level-5"><a class="toc-link" href="#反思,_why_it_works"><span class="toc-number">5.</span> <span class="toc-text">反思, why it works</span></a></li><li class="toc-item toc-level-5"><a class="toc-link" href="#End"><span class="toc-number">6.</span> <span class="toc-text">End</span></a></li></ol>
  
   </div>
 

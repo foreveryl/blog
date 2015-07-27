@@ -4,26 +4,44 @@
 <head>
   <meta charset="UTF-8">
   
-    <title>Hello World | yl</title>
+    <title>xgboost 代码流程理解 | yl</title>
     <meta name="viewport" content="width=device-width, initial-scale=1,user-scalable=no">
     
     <meta name="author" content="yl">
     
 
     
-    <meta name="description" content="Welcome to Hexo! This is your very first post. Check documentation for more info. If you get any problems when using Hexo, you can find the answer in troubleshooting or you can ask me on GitHub.
-Quick">
+    <meta name="description" content="入口:xgboost_main.cpp12xgboost::BoostLearnTask tsk;int ret = tsk.Run(argc, argv);
+作为主要入口. 分别作以下几件事
+
+initFromConfigure  外部config的参数
+initData   load data, 主要是DMatrix 
+TaskTrain()   
+
+task train 训练过程如下1),">
 <meta property="og:type" content="article">
-<meta property="og:title" content="Hello World">
-<meta property="og:url" content="http://foreveryl.github.io/blog/2015/07/08/hello-world/index.html">
+<meta property="og:title" content="xgboost 代码流程理解">
+<meta property="og:url" content="http://foreveryl.github.io/blog/2015/07/27/xgboost-1/index.html">
 <meta property="og:site_name" content="yl">
-<meta property="og:description" content="Welcome to Hexo! This is your very first post. Check documentation for more info. If you get any problems when using Hexo, you can find the answer in troubleshooting or you can ask me on GitHub.
-Quick">
-<meta property="og:updated_time" content="2015-07-08T07:59:00.238Z">
+<meta property="og:description" content="入口:xgboost_main.cpp12xgboost::BoostLearnTask tsk;int ret = tsk.Run(argc, argv);
+作为主要入口. 分别作以下几件事
+
+initFromConfigure  外部config的参数
+initData   load data, 主要是DMatrix 
+TaskTrain()   
+
+task train 训练过程如下1),">
+<meta property="og:updated_time" content="2015-07-27T10:47:26.364Z">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:title" content="Hello World">
-<meta name="twitter:description" content="Welcome to Hexo! This is your very first post. Check documentation for more info. If you get any problems when using Hexo, you can find the answer in troubleshooting or you can ask me on GitHub.
-Quick">
+<meta name="twitter:title" content="xgboost 代码流程理解">
+<meta name="twitter:description" content="入口:xgboost_main.cpp12xgboost::BoostLearnTask tsk;int ret = tsk.Run(argc, argv);
+作为主要入口. 分别作以下几件事
+
+initFromConfigure  外部config的参数
+initData   load data, 主要是DMatrix 
+TaskTrain()   
+
+task train 训练过程如下1),">
 
     
     <link rel="alternative" href="/atom.xml" title="yl" type="application/atom+xml">
@@ -82,14 +100,14 @@ Quick">
 		<header class="article-info clearfix">
   <h1 itemprop="name">
     
-      <a href="/blog/2015/07/08/hello-world/" title="Hello World" itemprop="url">Hello World</a>
+      <a href="/blog/2015/07/27/xgboost-1/" title="xgboost 代码流程理解" itemprop="url">xgboost 代码流程理解</a>
   </h1>
   <p class="article-author">By
        
 		<a href="/blog/about" title="yl" target="_blank" itemprop="author">yl</a>
 		
   <p class="article-time">
-    <time datetime="2015-07-08T07:59:00.238Z" itemprop="datePublished"> 发表于 2015-07-08</time>
+    <time datetime="2015-07-27T10:45:01.000Z" itemprop="datePublished"> 发表于 2015-07-27</time>
     
   </p>
 </header>
@@ -98,24 +116,45 @@ Quick">
 		<div id="toc" class="toc-article">
 			<strong class="toc-title">文章目录</strong>
 		
-			<ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#Quick_Start"><span class="toc-number">1.</span> <span class="toc-text">Quick Start</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#Create_a_new_post"><span class="toc-number">1.1.</span> <span class="toc-text">Create a new post</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#Run_server"><span class="toc-number">1.2.</span> <span class="toc-text">Run server</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#Generate_static_files"><span class="toc-number">1.3.</span> <span class="toc-text">Generate static files</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#Deploy_to_remote_sites"><span class="toc-number">1.4.</span> <span class="toc-text">Deploy to remote sites</span></a></li></ol></li></ol>
+			<ol class="toc"><li class="toc-item toc-level-6"><a class="toc-link" href="#入口:"><span class="toc-number">1.</span> <span class="toc-text">入口:</span></a></li></ol></li><li class="toc-item toc-level-5"><a class="toc-link" href="#InitLearn_函数:"><span class="toc-number"></span> <span class="toc-text">InitLearn 函数:</span></a></li><li class="toc-item toc-level-5"><a class="toc-link" href="#tree的构建:"><span class="toc-number"></span> <span class="toc-text">tree的构建:</span></a></li><li class="toc-item toc-level-5"><a class="toc-link" href="#训练过程:"><span class="toc-number"></span> <span class="toc-text">训练过程:</span></a></li><li class="toc-item toc-level-5"><a class="toc-link" href="#predictRaw()"><span class="toc-number"></span> <span class="toc-text">predictRaw()</span></a></li><li class="toc-item toc-level-5"><a class="toc-link" href="#树的生成-"><span class="toc-number"></span> <span class="toc-text">树的生成.</span></a>
 		
 		</div>
 		
-		<p>Welcome to <a href="http://hexo.io/" target="_blank" rel="external">Hexo</a>! This is your very first post. Check <a href="http://hexo.io/docs/" target="_blank" rel="external">documentation</a> for more info. If you get any problems when using Hexo, you can find the answer in <a href="http://hexo.io/docs/troubleshooting.html" target="_blank" rel="external">troubleshooting</a> or you can ask me on <a href="https://github.com/hexojs/hexo/issues" target="_blank" rel="external">GitHub</a>.</p>
-<h2 id="Quick_Start">Quick Start</h2><h3 id="Create_a_new_post">Create a new post</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ hexo new <span class="string">"My New Post"</span></span><br></pre></td></tr></table></figure>
-<p>More info: <a href="http://hexo.io/docs/writing.html" target="_blank" rel="external">Writing</a></p>
-<h3 id="Run_server">Run server</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ hexo server</span><br></pre></td></tr></table></figure>
-<p>More info: <a href="http://hexo.io/docs/server.html" target="_blank" rel="external">Server</a></p>
-<h3 id="Generate_static_files">Generate static files</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ hexo generate</span><br></pre></td></tr></table></figure>
-<p>More info: <a href="http://hexo.io/docs/generating.html" target="_blank" rel="external">Generating</a></p>
-<h3 id="Deploy_to_remote_sites">Deploy to remote sites</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ hexo deploy</span><br></pre></td></tr></table></figure>
-<p>More info: <a href="http://hexo.io/docs/deployment.html" target="_blank" rel="external">Deployment</a></p>
+		<h6 id="入口:">入口:</h6><p>xgboost_main.cpp<br><figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">xgboost::BoostLearnTask tsk;</span><br><span class="line"><span class="keyword">int</span> ret = tsk.Run(argc, argv);</span><br></pre></td></tr></table></figure></p>
+<p>作为主要入口. 分别作以下几件事</p>
+<ul>
+<li>initFromConfigure  外部config的参数</li>
+<li>initData   load data, 主要是DMatrix </li>
+<li>TaskTrain()   </li>
+</ul>
+<p>task train 训练过程如下<br>1), InitLearn()<br>2), 多伦迭代</p>
+<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">for</span> i &lt;- <span class="number">0</span>, num_round;   </span><br><span class="line">        learn.UpdateOneIter( ...)</span><br></pre></td></tr></table></figure>
+<p>3), saveModel</p>
+<h5 id="InitLearn_函数:">InitLearn 函数:</h5><p>learn: BoostLearner<br>主要是initModel() 函数<br>1), InitTrainer() 计算feature总数.<br>2), InitObjGBM()<br>这个有两个变量<br>计算一阶(grad), 二阶(hess) 梯度函数.<br>IObjFunction   obj_:    CreateObjFunction  比如: RegLossObj(LossType::kLogisticClassify);<br>注意, 这个梯度和LR 里的稍微不同, 主要取决于线性模型和树模型本身的 loss函数的不同. </p>
+<h5 id="tree的构建:">tree的构建:</h5><p>GradBooster  gbm_:    GBTree</p>
+<h5 id="训练过程:">训练过程:</h5><p>learn.UpdateOneIter( …)<br>1), PredictRaw()<br>2), obj<em>.GetGradient()  对每个样本点, 计算残差.<br>3), gmb</em>.DoBoost<br>在DoBoost 中, 根据updater, 来构建一棵树:</p>
+<h5 id="predictRaw()">predictRaw()</h5><p>对每个样本, 根据feature, 遍历tree, 获取leafIndex tid, 同历史数据累加 leaf_value() 以及leaf_vector<br>为什么要同历史数据累加 [ boosting! ]</p>
+<h5 id="树的生成-">树的生成.</h5><p>以ColMaker 为例:<br><figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">this</span>-&gt;InitData(gpair, *p_fmat, info.root_index, *<span class="keyword">p_t</span>ree);</span><br><span class="line"><span class="keyword">this</span>-&gt;InitNewNode(qexpand_, gpair, *p_fmat, info, *<span class="keyword">p_t</span>ree);</span><br><span class="line">  <span class="keyword">for</span> (<span class="keyword">int</span> depth = <span class="number">0</span>; depth &lt; param.max_depth; ++depth) &#123;   <span class="comment">// 构建一棵树. </span></span><br><span class="line">        <span class="keyword">this</span>-&gt;FindSplit(depth, qexpand_, gpair, p_fmat, info, <span class="keyword">p_t</span>ree);</span><br><span class="line">        <span class="keyword">this</span>-&gt;ResetPosition(qexpand_, p_fmat, *<span class="keyword">p_t</span>ree);</span><br><span class="line">        <span class="keyword">this</span>-&gt;UpdateQueueExpand(*<span class="keyword">p_t</span>ree, &amp;qexpand_);</span><br><span class="line">        <span class="keyword">this</span>-&gt;InitNewNode(qexpand_, gpair, *p_fmat, info, *<span class="keyword">p_t</span>ree);</span><br><span class="line">        <span class="comment">// if nothing left to be expand, break</span></span><br><span class="line">        <span class="keyword">if</span> (qexpand_.size() == <span class="number">0</span>) <span class="keyword">break</span>;</span><br><span class="line">      &#125;</span><br></pre></td></tr></table></figure></p>
+<ul>
+<li>InitData:<br>1), 初始化数据的position<br>2), 去掉deleted data ( hess 为 负的点)<br>3), 抽样feature<br>4), 在树里面增加root  index = 0</li>
+</ul>
+<ul>
+<li><p>InitNewNode<br>初始化root,<br>各个线程里每个data 的position 都归到root节点下. </p>
+<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// update node statistics</span></span><br><span class="line">snode[nid].stats = stats;</span><br><span class="line">snode[nid].root_gain = <span class="keyword">static_cast</span>&lt;<span class="keyword">float</span>&gt;(stats.CalcGain(param));</span><br><span class="line">snode[nid].weight = <span class="keyword">static_cast</span>&lt;<span class="keyword">float</span>&gt;(stats.CalcWeight(param));</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>总体树的构建过程:<br>然后类似于layer traverse tree 一样. 每次生成下一层的待分裂node,<br>qexpand: 待分割的node<br>UpdateQueueExpand, 生成下一层的待分割点.  </p>
+</li>
+</ul>
   
 	</div>
 		<footer class="article-footer clearfix">
 <div class="article-catetags">
 
+
+  <div class="article-tags">
+  
+  <span></span> <a href="/blog/tags/机器学习/">机器学习</a>
+  </div>
 
 </div>
 
@@ -123,7 +162,7 @@ Quick">
 
 	<div class="article-share" id="share">
 	
-	  <div data-url="http://foreveryl.github.io/blog/2015/07/08/hello-world/" data-title="Hello World | yl" data-tsina="null" class="share clearfix">
+	  <div data-url="http://foreveryl.github.io/blog/2015/07/27/xgboost-1/" data-title="xgboost 代码流程理解 | yl" data-tsina="null" class="share clearfix">
 	  </div>
 	
 	</div>
@@ -136,20 +175,20 @@ Quick">
 	
 <nav class="article-nav clearfix">
  
- <div class="prev" >
- <a href="/blog/2015/07/08/first-page/" title="GitHub 博客搭建笔记">
-  <strong>上一篇：</strong><br/>
-  <span>
-  GitHub 博客搭建笔记</span>
+
+<div class="next">
+<a href="/blog/2015/07/27/word2vector/"  title="word2vector 理解">
+ <strong>下一篇：</strong><br/> 
+ <span>word2vector 理解
+</span>
 </a>
 </div>
-
 
 </nav>
 
 	
 <section id="comments" class="comment">
-	<div class="ds-thread" data-thread-key="2015/07/08/hello-world/" data-title="Hello World" data-url="http://foreveryl.github.io/blog/2015/07/08/hello-world/"></div>
+	<div class="ds-thread" data-thread-key="2015/07/27/xgboost-1/" data-title="xgboost 代码流程理解" data-url="http://foreveryl.github.io/blog/2015/07/27/xgboost-1/"></div>
 </section>
 
 
@@ -159,7 +198,7 @@ Quick">
   <div id="toc" class="toc-aside">
   <strong class="toc-title">文章目录</strong>
  
- <ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#Quick_Start"><span class="toc-number">1.</span> <span class="toc-text">Quick Start</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#Create_a_new_post"><span class="toc-number">1.1.</span> <span class="toc-text">Create a new post</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#Run_server"><span class="toc-number">1.2.</span> <span class="toc-text">Run server</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#Generate_static_files"><span class="toc-number">1.3.</span> <span class="toc-text">Generate static files</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#Deploy_to_remote_sites"><span class="toc-number">1.4.</span> <span class="toc-text">Deploy to remote sites</span></a></li></ol></li></ol>
+ <ol class="toc"><li class="toc-item toc-level-6"><a class="toc-link" href="#入口:"><span class="toc-number">1.</span> <span class="toc-text">入口:</span></a></li></ol></li><li class="toc-item toc-level-5"><a class="toc-link" href="#InitLearn_函数:"><span class="toc-number"></span> <span class="toc-text">InitLearn 函数:</span></a></li><li class="toc-item toc-level-5"><a class="toc-link" href="#tree的构建:"><span class="toc-number"></span> <span class="toc-text">tree的构建:</span></a></li><li class="toc-item toc-level-5"><a class="toc-link" href="#训练过程:"><span class="toc-number"></span> <span class="toc-text">训练过程:</span></a></li><li class="toc-item toc-level-5"><a class="toc-link" href="#predictRaw()"><span class="toc-number"></span> <span class="toc-text">predictRaw()</span></a></li><li class="toc-item toc-level-5"><a class="toc-link" href="#树的生成-"><span class="toc-number"></span> <span class="toc-text">树的生成.</span></a>
  
   </div>
 
