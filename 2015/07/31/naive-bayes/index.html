@@ -4,26 +4,38 @@
 <head>
   <meta charset="UTF-8">
   
-    <title>Hello World | yl</title>
+    <title>naive_bayes | yl</title>
     <meta name="viewport" content="width=device-width, initial-scale=1,user-scalable=no">
     
     <meta name="author" content="yl">
     
 
     
-    <meta name="description" content="Welcome to Hexo! This is your very first post. Check documentation for more info. If you get any problems when using Hexo, you can find the answer in troubleshooting or you can ask me on GitHub.
-Quick">
+    <meta name="description" content="Naive Bayes数学推导Naive Bayes 其实质是生成时模型.所谓生成时模型, 其实是分别针对正, 负 样本, 研究其中data 中各个维度的分布情况. 
+推导过程:
+
+目标希望能能从给定的样本点 $x$ 得出他在$y$ 上的分布. 如二分类问题, 就是判断x 是正还是负样本. 即:$p(y | x )$
+
+贝叶斯转换:不同于LR, NB是生成时模型，体现在:$p(y | x ) =">
 <meta property="og:type" content="article">
-<meta property="og:title" content="Hello World">
-<meta property="og:url" content="http://foreveryl.github.io/blog/2015/07/08/hello-world/index.html">
+<meta property="og:title" content="naive_bayes">
+<meta property="og:url" content="http://foreveryl.github.io/blog/2015/07/31/naive-bayes/index.html">
 <meta property="og:site_name" content="yl">
-<meta property="og:description" content="Welcome to Hexo! This is your very first post. Check documentation for more info. If you get any problems when using Hexo, you can find the answer in troubleshooting or you can ask me on GitHub.
-Quick">
-<meta property="og:updated_time" content="2015-07-08T07:59:00.238Z">
+<meta property="og:description" content="Naive Bayes数学推导Naive Bayes 其实质是生成时模型.所谓生成时模型, 其实是分别针对正, 负 样本, 研究其中data 中各个维度的分布情况. 
+推导过程:
+
+目标希望能能从给定的样本点 $x$ 得出他在$y$ 上的分布. 如二分类问题, 就是判断x 是正还是负样本. 即:$p(y | x )$
+
+贝叶斯转换:不同于LR, NB是生成时模型，体现在:$p(y | x ) =">
+<meta property="og:updated_time" content="2015-07-31T07:30:23.929Z">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:title" content="Hello World">
-<meta name="twitter:description" content="Welcome to Hexo! This is your very first post. Check documentation for more info. If you get any problems when using Hexo, you can find the answer in troubleshooting or you can ask me on GitHub.
-Quick">
+<meta name="twitter:title" content="naive_bayes">
+<meta name="twitter:description" content="Naive Bayes数学推导Naive Bayes 其实质是生成时模型.所谓生成时模型, 其实是分别针对正, 负 样本, 研究其中data 中各个维度的分布情况. 
+推导过程:
+
+目标希望能能从给定的样本点 $x$ 得出他在$y$ 上的分布. 如二分类问题, 就是判断x 是正还是负样本. 即:$p(y | x )$
+
+贝叶斯转换:不同于LR, NB是生成时模型，体现在:$p(y | x ) =">
 
     
     <link rel="alternative" href="/atom.xml" title="yl" type="application/atom+xml">
@@ -82,14 +94,14 @@ Quick">
 		<header class="article-info clearfix">
   <h1 itemprop="name">
     
-      <a href="/blog/2015/07/08/hello-world/" title="Hello World" itemprop="url">Hello World</a>
+      <a href="/blog/2015/07/31/naive-bayes/" title="naive_bayes" itemprop="url">naive_bayes</a>
   </h1>
   <p class="article-author">By
        
 		<a href="/blog/about" title="yl" target="_blank" itemprop="author">yl</a>
 		
   <p class="article-time">
-    <time datetime="2015-07-08T07:59:00.238Z" itemprop="datePublished"> 发表于 2015-07-08</time>
+    <time datetime="2015-07-31T07:23:33.000Z" itemprop="datePublished"> 发表于 2015-07-31</time>
     
   </p>
 </header>
@@ -98,24 +110,50 @@ Quick">
 		<div id="toc" class="toc-article">
 			<strong class="toc-title">文章目录</strong>
 		
-			<ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#Quick_Start"><span class="toc-number">1.</span> <span class="toc-text">Quick Start</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#Create_a_new_post"><span class="toc-number">1.1.</span> <span class="toc-text">Create a new post</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#Run_server"><span class="toc-number">1.2.</span> <span class="toc-text">Run server</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#Generate_static_files"><span class="toc-number">1.3.</span> <span class="toc-text">Generate static files</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#Deploy_to_remote_sites"><span class="toc-number">1.4.</span> <span class="toc-text">Deploy to remote sites</span></a></li></ol></li></ol>
+			<ol class="toc"><li class="toc-item toc-level-3"><a class="toc-link" href="#Naive_Bayes"><span class="toc-number">1.</span> <span class="toc-text">Naive Bayes</span></a><ol class="toc-child"><li class="toc-item toc-level-5"><a class="toc-link" href="#数学推导"><span class="toc-number">1.0.1.</span> <span class="toc-text">数学推导</span></a></li><li class="toc-item toc-level-5"><a class="toc-link" href="#$p(x_|_y)$_求解,_这个的关键是看,_x_是什么变量-"><span class="toc-number">1.0.2.</span> <span class="toc-text">$p(x | y)$ 求解, 这个的关键是看,  x 是什么变量.</span></a></li></ol></li><li class="toc-item toc-level-4"><a class="toc-link" href="#End"><span class="toc-number">1.1.</span> <span class="toc-text">End</span></a></li></ol></li></ol>
 		
 		</div>
 		
-		<p>Welcome to <a href="http://hexo.io/" target="_blank" rel="external">Hexo</a>! This is your very first post. Check <a href="http://hexo.io/docs/" target="_blank" rel="external">documentation</a> for more info. If you get any problems when using Hexo, you can find the answer in <a href="http://hexo.io/docs/troubleshooting.html" target="_blank" rel="external">troubleshooting</a> or you can ask me on <a href="https://github.com/hexojs/hexo/issues" target="_blank" rel="external">GitHub</a>.</p>
-<h2 id="Quick_Start">Quick Start</h2><h3 id="Create_a_new_post">Create a new post</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ hexo new <span class="string">"My New Post"</span></span><br></pre></td></tr></table></figure>
-<p>More info: <a href="http://hexo.io/docs/writing.html" target="_blank" rel="external">Writing</a></p>
-<h3 id="Run_server">Run server</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ hexo server</span><br></pre></td></tr></table></figure>
-<p>More info: <a href="http://hexo.io/docs/server.html" target="_blank" rel="external">Server</a></p>
-<h3 id="Generate_static_files">Generate static files</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ hexo generate</span><br></pre></td></tr></table></figure>
-<p>More info: <a href="http://hexo.io/docs/generating.html" target="_blank" rel="external">Generating</a></p>
-<h3 id="Deploy_to_remote_sites">Deploy to remote sites</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ hexo deploy</span><br></pre></td></tr></table></figure>
-<p>More info: <a href="http://hexo.io/docs/deployment.html" target="_blank" rel="external">Deployment</a></p>
+		<h3 id="Naive_Bayes">Naive Bayes</h3><h5 id="数学推导">数学推导</h5><p>Naive Bayes 其实质是生成时模型.<br>所谓生成时模型, 其实是分别针对正, 负 样本, 研究其中data 中各个维度的分布情况. </p>
+<p>推导过程:</p>
+<ul>
+<li><p>目标<br>希望能能从给定的样本点 $x$ 得出他在$y$ 上的分布. 如二分类问题, 就是判断x 是正还是负样本. 即:<br>$p(y | x )$</p>
+</li>
+<li><p>贝叶斯转换:<br>不同于LR, NB是生成时模型，体现在:<br>$p(y | x ) = \frac {p(x | y ) * p(y) } {p(x,y) } $</p>
+</li>
+</ul>
+<p>在这个公式里, 分母$p(x,y)$ 是常量.  不做考虑.<br>分子<br>$p(y)$ 是$y$ 分布的概率. 已二分类为例, 那就是正负样本的比例.  给定样本, 就容易计算. 这各不提.<br>$p(x | y) $  这个就是生成时模型的本质:<br>每一个y值下, 研究x 的分布情况. </p>
+<p>为什么叫Naive呢?<br>这里是有一个假设, 就是$x$ 向量中每一个维度值独立分布的.   其实 LR 也是一样. </p>
+<p>于是有推导:<br>$p(y | x) =&gt; p(x | y ) <em> p(y) $<br>$ = p(x_{1} | y ) </em> p (x<em>{2} | y) <em> … </em> p (x</em>{n} | y )  *  p(y) $</p>
+<p>为减小运算. 这里需要乘法转加法<br>$p(y | x ) = log p(x<em>{1} | y ) + log p(x</em>{w} | y ) + … + log p(x_{n} | y ) + log p(y) $</p>
+<p>也就是对于二分分类,<br>计算:<br>$p(y=1 | x ) = log p(x<em>{1} | y=1 ) + log p(x</em>{2} | y=1 ) + … + log p(x<em>{n} | y=1 ) + log p(y=+1) $<br>$p(y=0 | x ) = log p(x</em>{1} | y=0) + log p(x<em>{2} | y=0 ) + … + log p(x</em>{n} | y=0 ) + log p(y=0) $<br>然后看那个概率大, 从而分类. </p>
+<p>现在的问题是, 如何求 $p(x | y=+1 )$ , $p(x | y=0 )$</p>
+<h5 id="$p(x_|_y)$_求解,_这个的关键是看,_x_是什么变量-">$p(x | y)$ 求解, 这个的关键是看,  x 是什么变量.</h5><ul>
+<li>如果 x 是 0, 1 这样的离散变量. 即是否出现.<br>也就是假设 x 服从Bernoulli 分布. 也叫[0,1] 分布.<br>$ P(x) = p$             when $n = 1 $<br>$ P(x) = 1-p           when  $x = 0 $<br>连续n个实验(即 n 个样本) , 就叫2项分布.<br>并且由统计知识:<br>$E(n) = np$  解释: n个样本中, 有正样本的个数.<br>这时候我们就可以从样本点中,  估算出$p$值的大小.<br>做法:<br>一堆正样本($m$个) 中, 有x 这个feature的样本的比例${n}$ , 于是:<br>$ p(x | y = 1) = \frac {n + \alpha} {m  + \alpha * class_number } $<br>加 $\alpha$ 是做拉普拉斯平滑</li>
+</ul>
+<p>由于这种x 是满足Bernoulli分布.  这种也叫<strong>Bernoulli Naive Bayes</strong></p>
+<ul>
+<li>如果 x 是可数的多个离散变量<br>比如一个筛子可以有6个面.<br>即假设x是服从Multinomial 分布.  这个就是对上面Bernoulli 分布的一个扩展.<br>其实算法是和上面是一样的.<br>$r$ 维的随机变量$<k_1, k_2,="" ...,="" k_r="">$ 服从多项式分布$M(n, p_1, p_2, … , p_r)$<br>那么对期望:<br>$E(k_1, k_2, …, k_r) = ( n <em> p_1,  n </em> p_2, … , n * p_r ) $<br>扫一遍数据, 就可以求出 $p_1, p_2, … , p_r$ 这些值. </k_1,></li>
+</ul>
+<p>这里的x 服从Multinomial分布, 所以这个叫<strong>Multinomial NB</strong></p>
+<ul>
+<li>如果 x 是连续变量.<br>这时候需要做假设, 假设x 是服从正太分布.<br>那么从正, 负样本的观测值中, 可分别预估出各自的正太分布函数.  即 正太分布, 各自方差和期望的计算.<br>那么, 对于任一个input, 就能计算出其概率的分布. </li>
+</ul>
+<p>因为假设x 是服从正太分布的, 所以这种叫: <strong>Gaussian NB</strong></p>
+<ul>
+<li>总结<br>对于变量, 假设其服从某个分布. 然后各在正, 负样本的中x的取值, 来求出该分布的参数. 即为: $p(x | y)$<br>具体求参数的方法, 需要依据实际的数据中你对样本分布的假设.</li>
+</ul>
+<h4 id="End">End</h4><p>可见, feature 不行, 运用的算法也不同.<br>我猜, 这个肯定是一个算法有时好用, 有时不好用的一个原因吧.<br>处理的数据不一样 :)</p>
   
 	</div>
 		<footer class="article-footer clearfix">
 <div class="article-catetags">
 
+
+  <div class="article-tags">
+  
+  <span></span> <a href="/blog/tags/机器学习/">机器学习</a>
+  </div>
 
 </div>
 
@@ -123,7 +161,7 @@ Quick">
 
 	<div class="article-share" id="share">
 	
-	  <div data-url="http://foreveryl.github.io/blog/2015/07/08/hello-world/" data-title="Hello World | yl" data-tsina="null" class="share clearfix">
+	  <div data-url="http://foreveryl.github.io/blog/2015/07/31/naive-bayes/" data-title="naive_bayes | yl" data-tsina="null" class="share clearfix">
 	  </div>
 	
 	</div>
@@ -136,20 +174,20 @@ Quick">
 	
 <nav class="article-nav clearfix">
  
- <div class="prev" >
- <a href="/blog/2015/07/08/first-page/" title="GitHub 博客搭建笔记">
-  <strong>上一篇：</strong><br/>
-  <span>
-  GitHub 博客搭建笔记</span>
+
+<div class="next">
+<a href="/blog/2015/07/27/xgboost-1/"  title="xgboost 代码流程理解">
+ <strong>下一篇：</strong><br/> 
+ <span>xgboost 代码流程理解
+</span>
 </a>
 </div>
-
 
 </nav>
 
 	
 <section id="comments" class="comment">
-	<div class="ds-thread" data-thread-key="2015/07/08/hello-world/" data-title="Hello World" data-url="http://foreveryl.github.io/blog/2015/07/08/hello-world/"></div>
+	<div class="ds-thread" data-thread-key="2015/07/31/naive-bayes/" data-title="naive_bayes" data-url="http://foreveryl.github.io/blog/2015/07/31/naive-bayes/"></div>
 </section>
 
 
@@ -159,7 +197,7 @@ Quick">
   <div id="toc" class="toc-aside">
   <strong class="toc-title">文章目录</strong>
  
- <ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#Quick_Start"><span class="toc-number">1.</span> <span class="toc-text">Quick Start</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#Create_a_new_post"><span class="toc-number">1.1.</span> <span class="toc-text">Create a new post</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#Run_server"><span class="toc-number">1.2.</span> <span class="toc-text">Run server</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#Generate_static_files"><span class="toc-number">1.3.</span> <span class="toc-text">Generate static files</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#Deploy_to_remote_sites"><span class="toc-number">1.4.</span> <span class="toc-text">Deploy to remote sites</span></a></li></ol></li></ol>
+ <ol class="toc"><li class="toc-item toc-level-3"><a class="toc-link" href="#Naive_Bayes"><span class="toc-number">1.</span> <span class="toc-text">Naive Bayes</span></a><ol class="toc-child"><li class="toc-item toc-level-5"><a class="toc-link" href="#数学推导"><span class="toc-number">1.0.1.</span> <span class="toc-text">数学推导</span></a></li><li class="toc-item toc-level-5"><a class="toc-link" href="#$p(x_|_y)$_求解,_这个的关键是看,_x_是什么变量-"><span class="toc-number">1.0.2.</span> <span class="toc-text">$p(x | y)$ 求解, 这个的关键是看,  x 是什么变量.</span></a></li></ol></li><li class="toc-item toc-level-4"><a class="toc-link" href="#End"><span class="toc-number">1.1.</span> <span class="toc-text">End</span></a></li></ol></li></ol>
  
   </div>
 
