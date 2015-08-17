@@ -80,6 +80,89 @@
         <header class="article-info clearfix">
   <h1 itemprop="name">
     
+      <a href="/blog/2015/08/17/paragraph-vector/" title="paragraph vector" itemprop="url">paragraph vector</a>
+  </h1>
+  <p class="article-author">By
+       
+		<a href="/blog/about" title="yl" target="_blank" itemprop="author">yl</a>
+		
+  <p class="article-time">
+    <time datetime="2015-08-17T12:51:25.000Z" itemprop="datePublished"> 发表于 2015-08-17</time>
+    
+  </p>
+</header>
+    <div class="article-content">
+        
+        <h3 id="paragraph_vector">paragraph vector</h3><p>google 在word2vec 后, 又提出了paragraph vector<br>motivation 很简单. 就是把一个document, 或者一个句子, 也能像word一样, 做成一个固定维度的向量.<br>实际上也有很多这样的需求, 但如果把一个句子中的word vector sum 起来, 这样的效果是很差的. </p>
+<h5 id="word2vec:">word2vec:</h5><ul>
+<li><p>object function<br>$<br>L = \sum {log P(w<em>{t} | w</em>{t-c}, … , w_{t+c} ) }<br>$</p>
+</li>
+<li><p>model (sum case)<br>$<br>P(w<em>{t} | w</em>{t-c}, … , w<em>{t+c}) = \frac {exp( u</em>{w<em>{t}} * v ) } {\sum</em>{w} exp(u<em>{w</em>{t}} * v )}<br>$<br>$<br>v = \sum v<em>{w</em>{t} }<br>$</p>
+</li>
+<li><p>train procedure<br>step1: maximize $ L $ for $u<em>{w}$ and $v</em>{w}$<br>step2: $v_{w}$ is word vector for w</p>
+</li>
+</ul>
+<h5 id="paragraph_vector-1">paragraph vector</h5><ul>
+<li><p>object function<br>$<br>L = \sum {log P(w<em>{t} | w</em>{t-c}, … , w<em>{t+c}, doc</em>{i} ) }<br>$</p>
+</li>
+<li><p>model (sum case)<br>$<br>P(w<em>{t} | w</em>{t-c}, … , w<em>{t+c}) = \frac {exp( u</em>{w<em>{t}} * v ) } {\sum</em>{w} exp(u<em>{w</em>{t}} * v )}<br>$<br>$<br>v = \sum v<em>{w</em>{t} } + d_{i}<br>$</p>
+</li>
+<li><p>train procedure<br>step1: maximize $ L $ for $u<em>{w}$ and $v</em>{w}$ and $doc<em>{i}$<br>step2: $v</em>{w}$ is word vector for w</p>
+</li>
+<li><p>predict new doc<br>step1: maximize $ L_{doc} $ for d<br>step2: use $d$ as doc vector</p>
+</li>
+</ul>
+<p>对比word2vec, paragraph vector 在训练上只是增加了doc的向量.<br>实现的逻辑是一致的. </p>
+<h5 id="资料:">资料:</h5><ul>
+<li><p>论文地址<br><a href="http://arxiv.org/pdf/1405.4053v2.pdf" target="_blank" rel="external">http://arxiv.org/pdf/1405.4053v2.pdf</a><br>paragraph vector 论文讨论地址:<br><a href="http://ml.memect.com/remix/3791234499380519.html" target="_blank" rel="external">http://ml.memect.com/remix/3791234499380519.html</a>  </p>
+</li>
+<li><p>code地址:<br><a href="https://github.com/mesnilgr/iclr15" target="_blank" rel="external">https://github.com/mesnilgr/iclr15</a></p>
+</li>
+</ul>
+
+        
+        
+        <p class="article-more-link">
+          
+       </p>
+    </div>
+    <footer class="article-footer clearfix">
+<div class="article-catetags">
+
+
+  <div class="article-tags">
+  
+  <span></span> <a href="/blog/tags/机器学习/">机器学习</a>
+  </div>
+
+</div>
+
+
+
+
+<div class="comments-count">
+	
+	  	<span></span>
+		<a href="/blog/2015/08/17/paragraph-vector/#comments" class="ds-thread-count comments-count-link" data-thread-key="2015/08/17/paragraph-vector/" data-count-type="comments">&nbsp;</a>
+	
+</div>
+
+</footer>
+
+
+    </article>
+
+
+
+
+
+
+   
+    
+    <article class="post-expand post" itemprop="articleBody"> 
+        <header class="article-info clearfix">
+  <h1 itemprop="name">
+    
       <a href="/blog/2015/07/31/naive-bayes/" title="naive_bayes" itemprop="url">naive_bayes</a>
   </h1>
   <p class="article-author">By
@@ -870,67 +953,10 @@
 
 
 
-   
-    
-    <article class="post-expand post" itemprop="articleBody"> 
-        <header class="article-info clearfix">
-  <h1 itemprop="name">
-    
-      <a href="/blog/2015/07/08/hello-world/" title="Hello World" itemprop="url">Hello World</a>
-  </h1>
-  <p class="article-author">By
-       
-		<a href="/blog/about" title="yl" target="_blank" itemprop="author">yl</a>
-		
-  <p class="article-time">
-    <time datetime="2015-07-08T07:59:00.238Z" itemprop="datePublished"> 发表于 2015-07-08</time>
-    
-  </p>
-</header>
-    <div class="article-content">
-        
-        <p>Welcome to <a href="http://hexo.io/" target="_blank" rel="external">Hexo</a>! This is your very first post. Check <a href="http://hexo.io/docs/" target="_blank" rel="external">documentation</a> for more info. If you get any problems when using Hexo, you can find the answer in <a href="http://hexo.io/docs/troubleshooting.html" target="_blank" rel="external">troubleshooting</a> or you can ask me on <a href="https://github.com/hexojs/hexo/issues" target="_blank" rel="external">GitHub</a>.</p>
-<h2 id="Quick_Start">Quick Start</h2><h3 id="Create_a_new_post">Create a new post</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ hexo new <span class="string">"My New Post"</span></span><br></pre></td></tr></table></figure>
-<p>More info: <a href="http://hexo.io/docs/writing.html" target="_blank" rel="external">Writing</a></p>
-<h3 id="Run_server">Run server</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ hexo server</span><br></pre></td></tr></table></figure>
-<p>More info: <a href="http://hexo.io/docs/server.html" target="_blank" rel="external">Server</a></p>
-<h3 id="Generate_static_files">Generate static files</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ hexo generate</span><br></pre></td></tr></table></figure>
-<p>More info: <a href="http://hexo.io/docs/generating.html" target="_blank" rel="external">Generating</a></p>
-<h3 id="Deploy_to_remote_sites">Deploy to remote sites</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ hexo deploy</span><br></pre></td></tr></table></figure>
-<p>More info: <a href="http://hexo.io/docs/deployment.html" target="_blank" rel="external">Deployment</a></p>
 
-        
-        
-        <p class="article-more-link">
-          
-       </p>
-    </div>
-    <footer class="article-footer clearfix">
-<div class="article-catetags">
-
-
-</div>
-
-
-
-
-<div class="comments-count">
-	
-	  	<span></span>
-		<a href="/blog/2015/07/08/hello-world/#comments" class="ds-thread-count comments-count-link" data-thread-key="2015/07/08/hello-world/" data-count-type="comments">&nbsp;</a>
-	
-</div>
-
-</footer>
-
-
-    </article>
-
-
-
-
-
-
+  <nav id="page-nav" class="clearfix">
+    <span class="page-number current">1</span><a class="page-number" href="/blog/page/2/">2</a><a class="extend next" rel="next" href="/blog/page/2/">Next<span></span></a>
+  </nav>
 
 </div>
       <div class="openaside"><a class="navbutton" href="#" title="显示侧边栏"></a></div>
@@ -947,7 +973,7 @@
 		<ul class="clearfix">
 		
 			
-				<li><a href="/blog/tags/机器学习/" title="机器学习">机器学习<sup>4</sup></a></li>
+				<li><a href="/blog/tags/机器学习/" title="机器学习">机器学习<sup>5</sup></a></li>
 			
 		
 			
